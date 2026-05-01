@@ -37,7 +37,7 @@
   <div id="view-toggle">
     <button class="vtbtn active" id="vt-grid" title="Grid">⊞</button>
     <button class="vtbtn" id="vt-list" title="List">☰</button>
-    <button class="vtbtn" id="vt-shelf" title="Shelf">📚</button>
+    <button class="vtbtn" id="vt-shelf" title="Shelf">⊟</button>
   </div>
 
   <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
@@ -97,6 +97,7 @@
     <div style="overflow:hidden;margin-bottom:14px;">
       <div id="open-thumb"></div>
       <h2 id="open-title"></h2>
+      <h2 id="open-author"></h2>
       <div class="sub" id="open-sub"></div>
     </div>
     <p class="note">Re-select this file from your device to continue reading from where you left off.</p>
@@ -107,10 +108,28 @@
   </div>
 </div>
 
+<!-- UPDATE MODAL -->
+<div id="update-overlay">
+  <div id="update-modal">
+    <div style="overflow:hidden;margin-bottom:14px;">
+      <div id="update-thumb"></div>
+      <input id="update-title" type="text"></input>
+      <input id="update-author" type="text"></input>
+      <div class="sub" id="update-sub"></div>
+    </div>
+    <p class="note">Update the book's information.</p>
+    <div class="modal-btns">
+      <button class="mbtn cancel" id="update-cancel">Cancel</button>
+      <button class="mbtn confirm" id="update-save">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONTEXT MENU -->
 <div id="ctx-menu">
-  <div class="ctx-item" id="ctx-read">📖 Read</div>
-  <div class="ctx-item danger" id="ctx-remove">🗑 Remove from library</div>
+  <div class="ctx-item" id="ctx-read">Read</div>
+  <div class="ctx-item" id="ctx-update">Update book</div>
+  <div class="ctx-item danger" id="ctx-remove">Remove from library</div>
 </div>
 
 <!-- FILE INPUTS -->

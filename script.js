@@ -1,7 +1,7 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── THEME ──────────────────────────────────────────────────────────────
-(function(){
+( function() {
   const t=localStorage.getItem('rdTheme')||'light';
   if(t==='dark') document.documentElement.setAttribute('data-theme','dark');
 })();
@@ -98,17 +98,19 @@ function renderGrid(lib,container){
   lib.forEach((book,i)=>{
     const p=pct(book);
     const[c1,c2]=spineColor(book.name);
-    const name=book.name.replace(/\.pdf$/i,'');
+    const title=book.title||book.name.replace(/\.pdf$/i,'');
+    const author=book.author?` by ${book.author}`:'';
     const div=document.createElement('div');
     div.className='grid-book';
     div.style.animationDelay=(i*40)+'ms';
     div.innerHTML=`
       <div class="grid-cover" style="background:${c1}">
         <div class="grid-spine" style="background:linear-gradient(to right,${c2},${c1})"></div>
-        <div class="cover-ph"><div class="ph-title">${esc(name)}</div></div>
+        <div class="cover-ph"><div class="ph-title">${esc(title)}</div></div>
       </div>
       <div class="grid-info">
-        <div class="grid-title">${esc(name)}</div>
+        <div class="grid-title">${esc(title)}</div>
+        <div class="grid-author">${esc(author)}</div>
         <div class="grid-meta">${formatDate(book.lastRead)}</div>
         <div class="grid-prog"><div class="grid-prog-bar" style="width:${p}%"></div></div>
       </div>`;
@@ -127,7 +129,8 @@ function renderList(lib,container){
   lib.forEach((book,i)=>{
     const p=pct(book);
     const[c1,c2]=spineColor(book.name);
-    const name=book.name.replace(/\.pdf$/i,'');
+    const title=book.title||book.name.replace(/\.pdf$/i,'');
+    const author=book.author?` by ${book.author}`:'';
     const div=document.createElement('div');
     div.className='list-book';
     div.style.animationDelay=(i*30)+'ms';
@@ -137,7 +140,8 @@ function renderList(lib,container){
         <div class="list-thumb-ph">📄</div>
       </div>
       <div class="list-info">
-        <div class="list-title">${esc(name)}</div>
+        <div class="list-title">${esc(title)}</div>
+        <div class="list-author">${esc(author)}</div>
         <div class="list-meta">Page ${book.page} of ${book.total||'?'} · ${formatDate(book.lastRead)}</div>
         <div class="list-prog"><div class="list-prog-bar" style="width:${p}%"></div></div>
       </div>
@@ -169,28 +173,21 @@ function renderShelf(lib,container){
 
     chunk.forEach(book=>{
       const[c1,c2]=spineColor(book.name);
-      const name=book.name.replace(/\.pdf$/i,'');
+      const title=book.title||book.name.replace(/\.pdf$/i,'');
+      const author=book.author?` by ${book.author}`:'';
       const p=pct(book);
-      const h=110+(Math.abs(hashStr(book.name))%70);
+      const h=200+(Math.abs(hashStr(book.name))%70);
       const sp=document.createElement('div');sp.className='spine-book';
       sp.innerHTML=`
-        <div class="spine-tooltip">${esc(name)} · ${p}%</div>
+        <div class="spine-tooltip">${esc(title)} · ${p}%</div>
         <div class="spine-body" style="height:${h}px;background:linear-gradient(to right,${c2} 0%,${c1} 40%,${c1} 100%)">
-          <div class="spine-title">${esc(name)}</div>
+          <div class="spine-title">${esc(title)}</div>
         </div>
         <div class="spine-bottom" style="background:${c2}"></div>`;
       sp.addEventListener('click',e=>{e.stopPropagation();promptOpen(book);});
       sp.addEventListener('contextmenu',e=>{e.preventDefault();showCtx(e,book);});
       books.appendChild(sp);
     });
-
-    // Add slot on last shelf or if room
-    if(ci===chunks.length-1){
-      const slot=document.createElement('div');slot.className='shelf-add-slot';
-      slot.innerHTML='<div class="shelf-add-inner">+</div>';
-      slot.addEventListener('click',openAddModal);
-      books.appendChild(slot);
-    }
 
     unit.appendChild(books);
     const plank=document.createElement('div');plank.className='shelf-plank';unit.appendChild(plank);
@@ -234,7 +231,7 @@ async function addBook(file){
     const thumb=await makeThumb(pdf);
     const lib=getLib();
     if(!lib.find(b=>b.name===file.name)){
-      lib.unshift({name:file.name,page:1,total,thumb,lastRead:null,added:Date.now()});
+      lib.unshift({name:file.name,title:file.name.replace(/\.pdf$/i,''),author:file.author||'Unknown',page:1,total,thumb,lastRead:null,added:Date.now()});
       saveLib(lib);
     }
     showLibraryView();renderLibrary();
@@ -254,7 +251,8 @@ async function makeThumb(pdf){
 // OPEN BOOK
 function promptOpen(book){
   pendingBook=book;
-  document.getElementById('open-title').textContent=book.name.replace(/\.pdf$/i,'');
+  document.getElementById('open-title').textContent=book.title
+  document.getElementById('open-author').textContent=book.author||'Unknown';
   document.getElementById('open-sub').textContent=`Page ${book.page} of ${book.total||'?'} · ${pct(book)}% read · ${formatDate(book.lastRead)}`;
   const th=document.getElementById('open-thumb');th.innerHTML='';
   if(book.thumb){
@@ -367,7 +365,7 @@ function goHome(){pdfDoc=null;showLibraryView();renderLibrary();}
 document.getElementById('btn-back').addEventListener('click',goHome);
 document.getElementById('btn-home-m').addEventListener('click',goHome);
 
-// ── SCREEN SWITCHING ──────────────────────────────────────────────────
+// SCREEN SWITCHING
 function showLoadingView(msg){
   screen='loading';
   document.getElementById('library-view').style.display='none';
@@ -422,6 +420,42 @@ function showReaderView(book){
   });
 });
 
+function updateBook(book){
+    pendingBook=book;
+    document.getElementById('update-title').value=book.title
+    document.getElementById('update-author').value=book.author||'Unknown';
+    document.getElementById('update-sub').textContent=`Page ${book.page} of ${book.total||'?'} · ${pct(book)}% read · ${formatDate(book.lastRead)}`;
+    const th=document.getElementById('update-thumb');th.innerHTML='';
+    if(book.thumb){
+        const[c1]=spineColor(book.name);
+        th.style.background=c1;
+        const img=new Image();img.src=book.thumb;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+        th.appendChild(img);
+    }else{
+        const[c1]=spineColor(book.name);
+        th.style.background=c1;
+        th.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:0.4">📄</div>';
+    }
+    document.getElementById('update-overlay').classList.add('open');
+}
+document.getElementById('update-cancel').addEventListener('click',()=>{document.getElementById('update-overlay').classList.remove('open');pendingBook=null;});
+document.getElementById('update-save').addEventListener('click',()=>{
+  if(pendingBook){
+    try{
+      const lib=getLib();
+      const b=lib.find(b=>b.name===pendingBook.name);
+      if(b){
+        b.title=document.getElementById('update-title').value.trim()||b.title;
+        b.author=document.getElementById('update-author').value.trim()||b.author;
+      }
+    saveLib(lib);
+    showLibraryView();renderLibrary();
+  }catch(err){showLibraryView();alert('Could not read PDF: '+err.message);}
+  }
+  document.getElementById('update-overlay').classList.remove('open');
+  pendingBook=null;
+});
+
 // ── CONTEXT MENU ──────────────────────────────────────────────────────
 const ctxMenu=document.getElementById('ctx-menu');
 function showCtx(e,book){
@@ -432,6 +466,7 @@ function showCtx(e,book){
 }
 document.addEventListener('click',()=>ctxMenu.classList.remove('open'));
 document.getElementById('ctx-read').addEventListener('click',()=>{if(ctxBook)promptOpen(ctxBook);ctxBook=null;});
+document.getElementById('ctx-update').addEventListener('click',()=>{if(ctxBook)updateBook(ctxBook);ctxBook=null;});
 document.getElementById('ctx-remove').addEventListener('click',()=>{
   if(!ctxBook)return;
   if(confirm(`Remove "${ctxBook.name.replace(/\.pdf$/i,'')}" from your library?`)){
