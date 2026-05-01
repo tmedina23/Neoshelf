@@ -22,11 +22,10 @@
     <div id="toolbar-subtitle" style="display:none"></div>
   </div>
 
-  <div id="page-nav">
-    <button class="tbtn icon-only" id="btn-prev" style="font-size:17px">‹</button>
-    <input type="number" id="page-input" min="1" value="1">
-    <span id="page-total">/ 1</span>
-    <button class="tbtn icon-only" id="btn-next" style="font-size:17px">›</button>
+  <div id="zoom-bar">
+    <button class="tbtn icon-only" id="btn-zoom-out" style="font-size:16px">−</button>
+    <span id="zoom-label">100%</span>
+    <button class="tbtn icon-only" id="btn-zoom-in" style="font-size:16px">+</button>
   </div>
 
   <div id="view-toggle">
@@ -36,7 +35,10 @@
   </div>
 
   <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
-  <button class="tbtn icon-only" id="btn-theme" title="Toggle theme">🌙</button>
+
+  <button class="tbtn icon-only" id="btn-invert" title="Invert Page">I</button>
+
+  <button class="tbtn icon-only" id="btn-theme" title="Toggle theme">D</button>
 </div>
 
 <!-- PROGRESS BAR -->
@@ -67,13 +69,9 @@
 <!-- BOTTOM BAR -->
 <div id="bottom-bar">
   <button class="tbtn icon-only" id="btn-prev-m" style="font-size:22px">‹</button>
-  <p id="page-indicator"></p>
+  <input type="text" id="page-input"></input>
+  <p id="page-ind"></p>
   <button class="tbtn icon-only" id="btn-next-m" style="font-size:22px">›</button>
-  <div id="zoom-bar">
-    <button class="tbtn icon-only" id="btn-zoom-out" style="font-size:16px">−</button>
-    <span id="zoom-label">100%</span>
-    <button class="tbtn icon-only" id="btn-zoom-in" style="font-size:16px">+</button>
-  </div>
 </div>
 
 <!-- ADD MODAL -->

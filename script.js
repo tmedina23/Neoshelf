@@ -292,7 +292,7 @@ document.getElementById('fi-open').addEventListener('change',async e=>{
   }catch(err){showLibraryView();alert('Could not open PDF: '+err.message);}
 });
 
-// ── RENDERING ─────────────────────────────────────────────────────────
+// RENDERING
 async function calcFitScale(){
   const page=await pdfDoc.getPage(1);
   const vp=page.getViewport({scale:1});
@@ -326,16 +326,12 @@ function goTo(n){
 
 function updateReaderUI(){
   document.getElementById('page-input').value=curPage;
-  document.getElementById('page-total').textContent='/ '+totalPages;
+  document.getElementById('page-ind').textContent=`/${totalPages}`;
   const p=totalPages>1?((curPage-1)/(totalPages-1))*100:100;
   document.getElementById('progress-fill').style.width=p+'%';
-  document.getElementById('toolbar-subtitle').textContent=`Page ${curPage} of ${totalPages}`;
-  document.getElementById('page-indicator').textContent=`${curPage}/${totalPages}`;
 }
 
 // Nav
-document.getElementById('btn-prev').addEventListener('click',()=>goTo(curPage-1));
-document.getElementById('btn-next').addEventListener('click',()=>goTo(curPage+1));
 document.getElementById('btn-prev-m').addEventListener('click',()=>goTo(curPage-1));
 document.getElementById('btn-next-m').addEventListener('click',()=>goTo(curPage+1));
 document.getElementById('page-input').addEventListener('keydown',e=>{if(e.key==='Enter')goTo(parseInt(e.target.value));});
@@ -365,6 +361,17 @@ document.getElementById('btn-zoom-out').addEventListener('click',()=>setZoom(sca
 function goHome(){pdfDoc=null;showLibraryView();renderLibrary();}
 document.getElementById('btn-back').addEventListener('click',goHome);
 
+// invert page
+function invertColors(invert){
+  const cvs=document.getElementById('pdf-canvas');
+  cvs.style.filter=invert?'invert(1)':'none';
+}
+document.getElementById('btn-invert').addEventListener('click',e=>{
+  const invert=cvs.style.filter!=='invert(1)';
+  invertColors(invert);
+  localStorage.setItem('rdInvert',invert?'1':'0');
+});
+
 // SCREEN SWITCHING
 function showLoadingView(msg){
   screen='loading';
@@ -372,7 +379,8 @@ function showLoadingView(msg){
   document.getElementById('loading-view').style.display='flex';
   document.getElementById('reader-view').style.display='none';
   document.getElementById('loading-text').textContent=msg||'Loading…';
-  document.getElementById('page-nav').style.display='none';
+  document.getElementById('page-input').style.display='none';
+  document.getElementById('page-ind').style.display='none';
   document.getElementById('zoom-bar').style.display='none';
   document.getElementById('view-toggle').style.display='none';
   document.getElementById('btn-add').style.display='none';
@@ -381,13 +389,15 @@ function showLoadingView(msg){
   document.getElementById('progress-fill').style.width='0%';
   document.getElementById('toolbar-title').textContent='Neoshelf.';
   document.getElementById('toolbar-subtitle').style.display='none';
+  document.getElementById('btn-invert').style.display='none';
 }
 function showLibraryView(){
   screen='library';
   document.getElementById('library-view').style.display='block';
   document.getElementById('loading-view').style.display='none';
   document.getElementById('reader-view').style.display='none';
-  document.getElementById('page-nav').style.display='none';
+  document.getElementById('page-input').style.display='none';
+  document.getElementById('page-ind').style.display='none';
   document.getElementById('zoom-bar').style.display='none';
   document.getElementById('view-toggle').style.display='flex';
   document.getElementById('btn-add').style.display='';
@@ -396,21 +406,25 @@ function showLibraryView(){
   document.getElementById('progress-fill').style.width='0%';
   document.getElementById('toolbar-title').textContent='Neoshelf.';
   document.getElementById('toolbar-subtitle').style.display='none';
+  document.getElementById('btn-invert').style.display='none';
 }
 function showReaderView(book){
   screen='reader';
   document.getElementById('library-view').style.display='none';
   document.getElementById('loading-view').style.display='none';
   document.getElementById('reader-view').style.display='flex';
-  document.getElementById('page-nav').style.display='flex';
+  document.getElementById('page-input').style.display='flex';
+  document.getElementById('page-ind').style.display='flex';
   document.getElementById('zoom-bar').style.display='flex';
   document.getElementById('view-toggle').style.display='none';
   document.getElementById('btn-add').style.display='none';
   document.getElementById('btn-back').style.display='flex';
   document.getElementById('bottom-bar').style.display='flex';
-  document.getElementById('toolbar-title').textContent=book.name.replace(/\.pdf$/i,'');
+  document.getElementById('toolbar-title').textContent=book.title;
   document.getElementById('toolbar-subtitle').style.display='block';
+  document.getElementById('toolbar-subtitle').textContent=book.author?`by ${book.author}`:'';
   document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
+  document.getElementById('btn-invert').style.display='flex';
 }
 
 // ── VIEW TOGGLE ───────────────────────────────────────────────────────
