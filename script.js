@@ -330,6 +330,7 @@ function updateReaderUI(){
   const p=totalPages>1?((curPage-1)/(totalPages-1))*100:100;
   document.getElementById('progress-fill').style.width=p+'%';
   document.getElementById('toolbar-subtitle').textContent=`Page ${curPage} of ${totalPages}`;
+  document.getElementById('page-indicator').textContent=`${curPage}/${totalPages}`;
 }
 
 // Nav
@@ -363,7 +364,6 @@ document.getElementById('btn-zoom-out').addEventListener('click',()=>setZoom(sca
 // Back
 function goHome(){pdfDoc=null;showLibraryView();renderLibrary();}
 document.getElementById('btn-back').addEventListener('click',goHome);
-document.getElementById('btn-home-m').addEventListener('click',goHome);
 
 // SCREEN SWITCHING
 function showLoadingView(msg){
