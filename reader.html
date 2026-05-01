@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Neoshelf.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <button class="tbtn icon-only" id="btn-back" style="display:none" title="Back to library">←</button>
+  <div style="flex:1;min-width:0;">
+    <div id="toolbar-title">Neoshelf.</div>
+    <div id="toolbar-subtitle" style="display:none"></div>
+  </div>
+
+  <div id="page-nav">
+    <button class="tbtn icon-only" id="btn-prev" style="font-size:17px">‹</button>
+    <input type="number" id="page-input" min="1" value="1">
+    <span id="page-total">/ 1</span>
+    <button class="tbtn icon-only" id="btn-next" style="font-size:17px">›</button>
+  </div>
+
+  <div id="zoom-bar">
+    <button class="tbtn icon-only" id="btn-zoom-out" style="font-size:16px">−</button>
+    <span id="zoom-label">100%</span>
+    <button class="tbtn icon-only" id="btn-zoom-in" style="font-size:16px">+</button>
+  </div>
+
+  <div id="view-toggle">
+    <button class="vtbtn active" id="vt-grid" title="Grid">⊞</button>
+    <button class="vtbtn" id="vt-list" title="List">☰</button>
+    <button class="vtbtn" id="vt-shelf" title="Shelf">📚</button>
+  </div>
+
+  <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
+  <button class="tbtn icon-only" id="btn-theme" title="Toggle theme">🌙</button>
+</div>
+
+<!-- PROGRESS BAR -->
+<div id="progress-bar"><div id="progress-fill"></div></div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="library-view">
+    <div id="empty-state">
+      <div class="shelf-icon">📚</div>
+      <h2>Your library is empty</h2>
+      <p>Add PDF books to your library. Your files stay on your device — nothing is uploaded anywhere.</p>
+      <button class="add-btn-large" id="btn-add-empty">+ Add your first book</button>
+    </div>
+    <div id="grid-container" style="display:none"></div>
+    <div id="list-container" style="display:none"></div>
+    <div id="shelf-container" style="display:none"></div>
+  </div>
+  <div id="loading-view">
+    <div class="spinner"></div>
+    <p id="loading-text">Loading…</p>
+  </div>
+  <div id="reader-view">
+    <canvas id="pdf-canvas"></canvas>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottom-bar">
+  <button class="tbtn icon-only" id="btn-prev-m" style="font-size:22px">‹</button>
+  <button class="tbtn icon-only" id="btn-home-m" style="font-size:16px">⌂</button>
+  <button class="tbtn icon-only" id="btn-next-m" style="font-size:22px">›</button>
+</div>
+
+<!-- ADD MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>Add to library</h2>
+    <p>Select a PDF from your device. A cover thumbnail and your reading progress are saved — the file itself stays on your device.</p>
+    <div id="drop-zone">
+      <div class="dz-icon">📄</div>
+      <div class="dz-text">Drop a PDF here, or click to browse</div>
+    </div>
+    <div class="modal-btns">
+      <button class="mbtn cancel" id="modal-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN MODAL -->
+<div id="open-overlay">
+  <div id="open-modal">
+    <div style="overflow:hidden;margin-bottom:14px;">
+      <div id="open-thumb"></div>
+      <h2 id="open-title"></h2>
+      <div class="sub" id="open-sub"></div>
+    </div>
+    <p class="note">Re-select this file from your device to continue reading from where you left off.</p>
+    <div class="modal-btns">
+      <button class="mbtn cancel" id="open-cancel">Cancel</button>
+      <button class="mbtn confirm" id="open-confirm">Choose file…</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-read">📖 Read</div>
+  <div class="ctx-item danger" id="ctx-remove">🗑 Remove from library</div>
+</div>
+
+<!-- FILE INPUTS -->
+<input type="file" id="fi-add" accept=".pdf" style="display:none">
+<input type="file" id="fi-open" accept=".pdf" style="display:none">
+
+<script src="script.js"></script>
+
+</body>
+</html>
