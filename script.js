@@ -251,7 +251,7 @@ async function makeThumb(pdf){
   }catch{return null;}
 }
 
-// OPEN BOOK~
+// OPEN BOOK
 function promptOpen(book){
   pendingBook=book;
   document.getElementById('open-title').textContent=book.name.replace(/\.pdf$/i,'');
