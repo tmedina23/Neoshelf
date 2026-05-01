@@ -7,6 +7,7 @@
   <title>Neoshelf.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="images\neoshelf.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -26,12 +27,6 @@
     <input type="number" id="page-input" min="1" value="1">
     <span id="page-total">/ 1</span>
     <button class="tbtn icon-only" id="btn-next" style="font-size:17px">›</button>
-  </div>
-
-  <div id="zoom-bar">
-    <button class="tbtn icon-only" id="btn-zoom-out" style="font-size:16px">−</button>
-    <span id="zoom-label">100%</span>
-    <button class="tbtn icon-only" id="btn-zoom-in" style="font-size:16px">+</button>
   </div>
 
   <div id="view-toggle">
@@ -72,8 +67,13 @@
 <!-- BOTTOM BAR -->
 <div id="bottom-bar">
   <button class="tbtn icon-only" id="btn-prev-m" style="font-size:22px">‹</button>
-  <button class="tbtn icon-only" id="btn-home-m" style="font-size:16px">⌂</button>
+  <p id="page-indicator"></p>
   <button class="tbtn icon-only" id="btn-next-m" style="font-size:22px">›</button>
+  <div id="zoom-bar">
+    <button class="tbtn icon-only" id="btn-zoom-out" style="font-size:16px">−</button>
+    <span id="zoom-label">100%</span>
+    <button class="tbtn icon-only" id="btn-zoom-in" style="font-size:16px">+</button>
+  </div>
 </div>
 
 <!-- ADD MODAL -->
