@@ -346,11 +346,6 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft'||e.key==='ArrowUp')goTo(curPage-1);
 });
 
-// Swipe
-const cvs=document.getElementById('pdf-canvas');
-cvs.addEventListener('touchstart',e=>{if(e.touches.length===1)touchX=e.touches[0].clientX;},{passive:true});
-cvs.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)>50)goTo(dx<0?curPage+1:curPage-1);},{passive:true});
-
 // Zoom
 function setZoom(z){
   scale=Math.max(0.4,Math.min(3,z));
