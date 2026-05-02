@@ -233,6 +233,7 @@ async function addBook(file){
     if(!lib.find(b=>b.name===file.name)){
       lib.unshift({name:file.name,title:file.name.replace(/\.pdf$/i,''),author:file.author||'Unknown',page:1,total,thumb,lastRead:null,added:Date.now()});
       saveLib(lib);
+      updateBook(lib[0]);
     }
     showLibraryView();renderLibrary();
   }catch(err){showLibraryView();alert('Could not read PDF: '+err.message);}
@@ -334,6 +335,8 @@ function updateReaderUI(){
 // Nav
 document.getElementById('btn-prev-m').addEventListener('click',()=>goTo(curPage-1));
 document.getElementById('btn-next-m').addEventListener('click',()=>goTo(curPage+1));
+document.getElementById('btn-prev-page').addEventListener('click',()=>goTo(curPage-1));
+document.getElementById('btn-next-page').addEventListener('click',()=>goTo(curPage+1));
 document.getElementById('page-input').addEventListener('keydown',e=>{if(e.key==='Enter')goTo(parseInt(e.target.value));});
 document.getElementById('page-input').addEventListener('blur',e=>goTo(parseInt(e.target.value)));
 
@@ -419,7 +422,7 @@ function showReaderView(book){
   document.getElementById('view-toggle').style.display='none';
   document.getElementById('btn-add').style.display='none';
   document.getElementById('btn-back').style.display='flex';
-  document.getElementById('bottom-bar').style.display='flex';
+  document.getElementById('bottom-bar').style.display = window.innerWidth <= 768 ? 'flex' : 'none';
   document.getElementById('toolbar-title').textContent=book.title;
   document.getElementById('toolbar-subtitle').style.display='block';
   document.getElementById('toolbar-subtitle').textContent=book.author?`by ${book.author}`:'';
