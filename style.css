@@ -1105,6 +1105,11 @@ body {
 
   #reader-view {
     padding-bottom: 72px;
+    overflow-x: auto;
+  }
+
+  #pdf-canvas {
+    max-width: none;
   }
 
   #toolbar {
