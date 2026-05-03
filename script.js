@@ -108,6 +108,7 @@ function renderGrid(lib,container){
         <div class="grid-spine" style="background:linear-gradient(to right,${c2},${c1})"></div>
         <div class="cover-ph"><div class="ph-title">${esc(title)}</div></div>
       </div>
+      <button class="grid-settings-btn" title="Menu">⋮</button>
       <div class="grid-info">
         <div class="grid-title">${esc(title)}</div>
         <div class="grid-author">${esc(author)}</div>
@@ -121,6 +122,8 @@ function renderGrid(lib,container){
     }
     div.addEventListener('click',e=>{e.stopPropagation();promptOpen(book);});
     div.addEventListener('contextmenu',e=>{e.preventDefault();showCtx(e,book);});
+    const settingsBtn=div.querySelector('.grid-settings-btn');
+    settingsBtn.addEventListener('click',e=>{e.stopPropagation();showCtx({clientX:e.clientX,clientY:e.clientY},book);});
     container.appendChild(div);
   });
 }
@@ -145,7 +148,8 @@ function renderList(lib,container){
         <div class="list-meta">Page ${book.page} of ${book.total||'?'} · ${formatDate(book.lastRead)}</div>
         <div class="list-prog"><div class="list-prog-bar" style="width:${p}%"></div></div>
       </div>
-      <div class="list-pct">${p}%</div>`;
+      <div class="list-pct">${p}%</div>
+      <button class="list-settings-btn" title="Menu">⋮</button>`;
     const thumb=div.querySelector('.list-thumb');
     if(book.thumb){
       const img=new Image();img.src=book.thumb;
@@ -153,6 +157,8 @@ function renderList(lib,container){
     }
     div.addEventListener('click',e=>{e.stopPropagation();promptOpen(book);});
     div.addEventListener('contextmenu',e=>{e.preventDefault();showCtx(e,book);});
+    const settingsBtn=div.querySelector('.list-settings-btn');
+    settingsBtn.addEventListener('click',e=>{e.stopPropagation();showCtx({clientX:e.clientX,clientY:e.clientY},book);});
     container.appendChild(div);
   });
 }
@@ -182,10 +188,13 @@ function renderShelf(lib,container){
         <div class="spine-tooltip">${esc(title)} · ${p}%</div>
         <div class="spine-body" style="height:${h}px;background:linear-gradient(to right,${c2} 0%,${c1} 40%,${c1} 100%)">
           <div class="spine-title">${esc(title)}</div>
+          <button class="spine-settings-btn" title="Menu">⋮</button>
         </div>
         <div class="spine-bottom" style="background:${c2}"></div>`;
       sp.addEventListener('click',e=>{e.stopPropagation();promptOpen(book);});
       sp.addEventListener('contextmenu',e=>{e.preventDefault();showCtx(e,book);});
+      const settingsBtn=sp.querySelector('.spine-settings-btn');
+      settingsBtn.addEventListener('click',e=>{e.stopPropagation();showCtx({clientX:e.clientX,clientY:e.clientY},book);});
       books.appendChild(sp);
     });
 

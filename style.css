@@ -978,6 +978,88 @@ body {
   object-fit: cover;
 }
 
+/* MOBILE SETTINGS BUTTONS */
+.grid-settings-btn,
+.list-settings-btn,
+.spine-settings-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .grid-settings-btn {
+    display: block;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.4);
+    color: white;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+    z-index: 10;
+  }
+
+  .grid-book {
+    position: relative;
+  }
+
+  .grid-settings-btn:active {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .list-settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: var(--surface2);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .list-settings-btn:active {
+    background: var(--surface3);
+  }
+
+  .spine-settings-btn {
+    display: block;
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    z-index: 10;
+  }
+
+  .spine-body {
+    position: relative;
+  }
+
+  .spine-settings-btn:active {
+    background: rgba(0, 0, 0, 0.5);
+  }
+}
+
 /* CONTEXT MENU */
 #ctx-menu {
   display: none;
