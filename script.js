@@ -185,10 +185,10 @@ function renderShelf(lib,container){
       const h=200+(Math.abs(hashStr(book.name))%70);
       const sp=document.createElement('div');sp.className='spine-book';
       sp.innerHTML=`
+        <button class="spine-settings-btn" title="Menu">⋮</button>
         <div class="spine-tooltip">${esc(title)} · ${p}%</div>
         <div class="spine-body" style="height:${h}px;background:linear-gradient(to right,${c2} 0%,${c1} 40%,${c1} 100%)">
           <div class="spine-title">${esc(title)}</div>
-          <button class="spine-settings-btn" title="Menu">⋮</button>
         </div>
         <div class="spine-bottom" style="background:${c2}"></div>`;
       sp.addEventListener('click',e=>{e.stopPropagation();promptOpen(book);});
@@ -370,11 +370,12 @@ document.getElementById('btn-back').addEventListener('click',goHome);
 
 // invert page
 function invertColors(invert){
-  const cvs=document.getElementById('pdf-canvas');
-  cvs.style.filter=invert?'invert(1)':'none';
+  const canvas=document.getElementById('pdf-canvas');
+  canvas.style.filter=invert?'invert(1)':'none';
 }
 document.getElementById('btn-invert').addEventListener('click',e=>{
-  const invert=cvs.style.filter!=='invert(1)';
+  const canvas=document.getElementById('pdf-canvas');
+  const invert=canvas.style.filter!=='invert(1)';
   invertColors(invert);
   localStorage.setItem('rdInvert',invert?'1':'0');
 });
