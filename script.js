@@ -380,6 +380,17 @@ document.getElementById('btn-invert').addEventListener('click',e=>{
   localStorage.setItem('rdInvert',invert?'1':'0');
 });
 
+function rotatePage(){
+  const canvas=document.getElementById('pdf-canvas');
+  const style=canvas.style.transform;
+  const rotate=style.includes('rotate(90deg)')?'rotate(180deg)':
+                style.includes('rotate(180deg)')?'rotate(270deg)':
+                style.includes('rotate(270deg)')?'rotate(0deg)':'rotate(90deg)';
+  canvas.style.transform=rotate;
+  localStorage.setItem('rdRotate',rotate);
+}
+document.getElementById('btn-rotate').addEventListener('click',rotatePage);
+
 // SCREEN SWITCHING
 function showLoadingView(msg){
   screen='loading';
@@ -398,6 +409,7 @@ function showLoadingView(msg){
   document.getElementById('toolbar-title').textContent='Neoshelf.';
   document.getElementById('toolbar-subtitle').style.display='none';
   document.getElementById('btn-invert').style.display='none';
+  document.getElementById('btn-rotate').style.display='none';
 }
 function showLibraryView(){
   screen='library';
@@ -415,6 +427,7 @@ function showLibraryView(){
   document.getElementById('toolbar-title').textContent='Neoshelf.';
   document.getElementById('toolbar-subtitle').style.display='none';
   document.getElementById('btn-invert').style.display='none';
+  document.getElementById('btn-rotate').style.display='none';
 }
 function showReaderView(book){
   screen='reader';
@@ -433,6 +446,7 @@ function showReaderView(book){
   document.getElementById('toolbar-subtitle').textContent=book.author?`by ${book.author}`:'';
   document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
   document.getElementById('btn-invert').style.display='flex';
+  document.getElementById('btn-rotate').style.display='flex';
 }
 
 // ── VIEW TOGGLE ───────────────────────────────────────────────────────

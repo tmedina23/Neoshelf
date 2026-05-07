@@ -1184,6 +1184,10 @@ body {
 
 /* MOBILE */
 @media (max-width: 768px) {
+  body {
+    touch-action: pan-x, pan-y;
+  }
+
   #page-nav {
     display: none !important;
   }
@@ -1192,6 +1196,7 @@ body {
     padding-bottom: 72px;
     overflow-x: auto;
     align-items: flex-start;
+    touch-action: pan-x, pan-y;
   }
 
   #pdf-canvas {
@@ -1222,5 +1227,9 @@ body {
 
   .tbtn.primary span {
     display: inline;
+  }
+
+  #btn-rotate {
+    display: none;
   }
 }
