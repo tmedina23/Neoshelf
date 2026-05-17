@@ -122,6 +122,11 @@ body {
   white-space: nowrap;
 }
 
+.tbtn img {
+  width: 16px;
+  height: 16px;
+}
+
 .tbtn:hover {
   background: var(--surface2);
   color: var(--text);
