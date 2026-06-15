@@ -7,6 +7,7 @@ Built with ease in mind, Neoshelf is a minimal web app for reading books in PDF 
 Features:
 - Progress is saved on the device
 - Nothing is uploaded
+- Import/Export to transfer progress to other devices
 - Three library view modes
 - Dark and Light mode
 - Zoom
