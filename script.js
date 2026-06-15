@@ -521,6 +521,137 @@ window.addEventListener('resize',()=>{
   },200);
 });
 
+// ── LIBRARY TRANSFER ──────────────────────────────────────────────────
+const BACKUP_VERSION = 1;
+ 
+function openTransferModal(){
+  // Populate export stats
+  const lib=getLib();
+  const read=lib.filter(b=>b.lastRead).length;
+  document.getElementById('export-stats').innerHTML=
+    `<div>Books: <span>${lib.length}</span></div><div>Ever opened: <span>${read}</span></div>`;
+  // Reset import status
+  const st=document.getElementById('import-status');
+  st.style.display='none'; st.className=''; st.textContent='';
+  document.getElementById('transfer-overlay').classList.add('open');
+}
+ 
+document.getElementById('btn-transfer').addEventListener('click',openTransferModal);
+document.getElementById('btn-import-empty').addEventListener('click',()=>{
+  openTransferModal();
+  // Switch straight to the import tab
+  document.querySelectorAll('.tm-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tm-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector('.tm-tab[data-tab="import"]').classList.add('active');
+  document.getElementById('tm-import').classList.add('active');
+});
+document.getElementById('transfer-close').addEventListener('click',()=>document.getElementById('transfer-overlay').classList.remove('open'));
+document.getElementById('transfer-overlay').addEventListener('click',e=>{
+  if(e.target.id==='transfer-overlay') document.getElementById('transfer-overlay').classList.remove('open');
+});
+
+// Tab switching
+document.querySelectorAll('.tm-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tm-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tm-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tm-'+tab.dataset.tab).classList.add('active');
+  });
+});
+ 
+// ── EXPORT ────────────────────────────────────────────────────────────
+function exportLibrary(){
+  const lib=getLib();
+  if(!lib.length){ alert('Your library is empty — nothing to export.'); return; }
+  // Strip thumbnails to keep file small; they regenerate on next open
+  const clean=lib.map(({thumb,...rest})=>rest);
+  const payload={
+    version: BACKUP_VERSION,
+    exported: new Date().toISOString(),
+    books: clean
+  };
+  const json=JSON.stringify(payload, null, 2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const date=new Date().toISOString().slice(0,10);
+  a.download=`my-library-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('btn-do-export').addEventListener('click',exportLibrary);
+ 
+// ── IMPORT ────────────────────────────────────────────────────────────
+function showImportStatus(msg, ok){
+  const st=document.getElementById('import-status');
+  st.textContent=msg;
+  st.className=ok?'ok':'err';
+  st.style.display='block';
+}
+ 
+function doImport(file){
+  const merge=document.getElementById('import-merge-chk').checked;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.books||!Array.isArray(data.books)) throw new Error('Not a valid library backup file.');
+ 
+      const incoming=data.books;
+      let lib=merge ? getLib() : [];
+ 
+      let added=0, updated=0;
+      incoming.forEach(inBook=>{
+        if(!inBook.name) return;
+        const existing=lib.find(b=>b.name===inBook.name);
+        if(!existing){
+          // New book — add it (thumb will regenerate on open)
+          lib.push({...inBook, thumb:null});
+          added++;
+        } else {
+          // Existing — keep whichever page is further ahead
+          if((inBook.page||1) > (existing.page||1)){
+            existing.page=inBook.page;
+            existing.lastRead=inBook.lastRead;
+            updated++;
+          }
+        }
+      });
+ 
+      saveLib(lib);
+      renderLibrary();
+      const msg=merge
+        ? `Done! Added ${added} new book${added!==1?'s':''}, updated progress on ${updated}.`
+        : `Library replaced with ${incoming.length} book${incoming.length!==1?'s':''}.`;
+      showImportStatus('✓ '+msg, true);
+    }catch(err){
+      showImportStatus('✗ '+err.message, false);
+    }
+  };
+  reader.onerror=()=>showImportStatus('✗ Could not read the file.', false);
+  reader.readAsText(file);
+}
+ 
+// Click to browse
+document.getElementById('import-dz').addEventListener('click',()=>document.getElementById('fi-import').click());
+document.getElementById('fi-import').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(f) doImport(f); e.target.value='';
+});
+ 
+// Drag and drop onto import drop zone
+const idz=document.getElementById('import-dz');
+idz.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();idz.style.borderColor='var(--accent)';idz.style.background='var(--accent-light)';});
+idz.addEventListener('dragleave',()=>{idz.style.borderColor='';idz.style.background='';});
+idz.addEventListener('drop',e=>{
+  e.preventDefault();e.stopPropagation();
+  idz.style.borderColor='';idz.style.background='';
+  const f=e.dataTransfer.files[0];
+  if(f&&f.name.endsWith('.json')) doImport(f);
+  else showImportStatus('✗ Please drop a .json backup file.', false);
+});
+
 // ── INIT ──────────────────────────────────────────────────────────────
 showLibraryView();
 renderLibrary();

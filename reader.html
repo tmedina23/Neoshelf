@@ -34,6 +34,8 @@
     <button class="vtbtn" id="vt-list" title="List">☰</button>
   </div>
 
+  <button class="tbtn icon-only" id="btn-transfer" title="Export / Import library">⇅</button>
+
   <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
 
   <button class="tbtn icon-only" id="btn-invert" title="Invert Page"><img src="images/icons/invert.png"></button>
@@ -52,6 +54,7 @@
       <h2>Your library is empty</h2>
       <p>Add PDF books to your library. Your files stay on your device — nothing is uploaded anywhere.</p>
       <button class="add-btn-large" id="btn-add-empty">+ Add your first book</button>
+      <button class="add-btn-large" id="btn-import-empty">⬆ Import a backup</button>
     </div>
     <div id="grid-container" style="display:none"></div>
     <div id="list-container" style="display:none"></div>
@@ -132,9 +135,49 @@
   <div class="ctx-item danger" id="ctx-remove">Remove from library</div>
 </div>
 
+<!-- TRANSFER MODAL -->
+<div id="transfer-overlay">
+  <div id="transfer-modal">
+    <h2>Library Transfer</h2>
+    <p class="tm-sub">Export your library to move it to another device or browser, or import a backup.</p>
+    <div class="tm-tabs">
+      <button class="tm-tab active" data-tab="export">Export</button>
+      <button class="tm-tab" data-tab="import">Import</button>
+    </div>
+ 
+    <!-- EXPORT -->
+    <div class="tm-panel active" id="tm-export">
+      <div class="export-stats" id="export-stats"></div>
+      <p class="export-note">Downloads a <code>.json</code> backup file containing your book list, reading positions, and last-read dates. Cover thumbnails are not included to keep the file small — they'll regenerate when you next open each book.</p>
+      <div class="export-actions">
+        <button class="mbtn confirm" id="btn-do-export">⬇ Download backup file</button>
+      </div>
+    </div>
+ 
+    <!-- IMPORT -->
+    <div class="tm-panel" id="tm-import">
+      <div class="import-dz" id="import-dz">
+        <div class="idz-icon">📂</div>
+        <div class="idz-text">Click to choose a backup file, or drag it here</div>
+      </div>
+      <div class="import-merge">
+        <input type="checkbox" id="import-merge-chk" checked>
+        <label for="import-merge-chk">Merge with existing library (uncheck to replace entirely)</label>
+      </div>
+      <div id="import-status"></div>
+      <p class="export-note">Importing will restore your book list and page positions. Books that already exist in your library keep whichever progress is further ahead.</p>
+    </div>
+ 
+    <div class="tm-footer">
+      <button class="mbtn cancel" id="transfer-close">Close</button>
+    </div>
+  </div>
+</div>
+ 
 <!-- FILE INPUTS -->
 <input type="file" id="fi-add" accept=".pdf" style="display:none">
 <input type="file" id="fi-open" accept=".pdf" style="display:none">
+<input type="file" id="fi-import" accept=".json" style="display:none">
 
 <script src="script.js"></script>
 
