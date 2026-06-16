@@ -299,6 +299,15 @@ document.getElementById('fi-open').addEventListener('change',async e=>{
     showReaderView(book);
     await renderPage(curPage);
     updateReaderUI();
+    // Regenerate thumbnail silently if missing (e.g. after an import)
+    if(!book.thumb){
+      makeThumb(pdf).then(thumb=>{
+        if(!thumb) return;
+        const lib=getLib();
+        const b=lib.find(b=>b.name===book.name);
+        if(b){b.thumb=thumb;saveLib(lib);}
+      });
+    }
   }catch(err){showLibraryView();alert('Could not open PDF: '+err.message);}
 });
 
@@ -439,6 +448,7 @@ function showReaderView(book){
   document.getElementById('zoom-bar').style.display='flex';
   document.getElementById('view-toggle').style.display='none';
   document.getElementById('btn-add').style.display='none';
+  document.getElementById('btn-transfer').style.display='none';
   document.getElementById('btn-back').style.display='flex';
   document.getElementById('bottom-bar').style.display = window.innerWidth <= 768 ? 'flex' : 'none';
   document.getElementById('toolbar-title').textContent=book.title;
