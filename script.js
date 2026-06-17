@@ -3,21 +3,33 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 // ── THEME ──────────────────────────────────────────────────────────────
 ( function() {
   const t=localStorage.getItem('rdTheme')||'light';
-  if(t==='dark') document.documentElement.setAttribute('data-theme','dark');
+  if(t==='dark'){
+    document.documentElement.setAttribute('data-theme','dark');
+    document.getElementById('img-theme').src = './images/icons/light.png';
+    document.getElementById('img-rotate').src = './images/icons/rotate-D.png';
+  }
 })();
 function themeIcon(){
-    return document.documentElement.getAttribute('data-theme')==='dark'?'L':'D';
+    var btnTheme=document.getElementById('btn-theme');
+    return btnTheme.src === './images/icons/dark.png'?'./images/icons/light.png':'./images/icons/dark.png';
 }
-const btnTheme=document.getElementById('btn-theme');
-btnTheme.textContent=themeIcon();
 
+btnTheme=document.getElementById('img-theme');
+btnInvert = document.getElementById('img-invert');
+btnRotate = document.getElementById('img-rotate');
+    
 btnTheme.addEventListener('click',()=>{
   const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme',dark?'light':'dark');
   localStorage.setItem('rdTheme',dark?'light':'dark');
-  btnTheme.textContent=themeIcon();
+  if(dark) {
+    btnTheme.src = './images/icons/dark.png';
+    btnRotate.src = './images/icons/rotate-L.png';
+  } else {  
+    btnTheme.src = './images/icons/light.png';
+    btnRotate.src = './images/icons/rotate-D.png';
+  }
   if(currentView==='shelf') renderShelf();
-
 }
 );
 
@@ -386,6 +398,8 @@ document.getElementById('btn-invert').addEventListener('click',e=>{
   const canvas=document.getElementById('pdf-canvas');
   const invert=canvas.style.filter!=='invert(1)';
   invertColors(invert);
+  const btn = document.getElementById('img-invert');
+  btn.src = btn.src.includes('uninvert.png') ? './images/icons/invert.png' : './images/icons/uninvert.png';
   localStorage.setItem('rdInvert',invert?'1':'0');
 });
 
