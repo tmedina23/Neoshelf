@@ -39,7 +39,7 @@ const DRIVE_SCOPE       = 'https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_LIB_FILENAME = 'library.json';
 
 let gTokenClient=null, gAccessToken=null, gTokenExpiry=0;
-let driveConnected=false, driveSyncing=false, driveLastSynced=null;
+let driveConnected=false, driveSyncing=false, driveLastSynced=null, driveNeedsReconnect=false;
 let driveLibraryFileId=null, driveLib=null;
 let driveSaveTimer=null;
 
@@ -51,6 +51,13 @@ function initGoogleAuth(){
     callback: handleTokenResponse,
   });
   if(localStorage.getItem('rdDriveConnected')==='1'){
+    // Show the last-synced library immediately so the app feels instant,
+    // then try to silently resume the Drive session in the background.
+    let cached=[]; try{ cached=JSON.parse(localStorage.getItem('rdDriveLibCache'))||[]; }catch{}
+    driveLib=cached;
+    driveConnected=true;
+    updateDriveUI();
+    if(screen==='library') renderLibrary();
     gTokenClient.requestAccessToken({prompt:''});
   }
 }
@@ -58,26 +65,37 @@ function initGoogleAuth(){
 function handleTokenResponse(resp){
   if(resp.error){
     console.warn('Google Drive auth error:',resp.error);
-    driveConnected=false;
+    if(driveLib){
+      // We already have a previous/cached session worth preserving — keep
+      // showing it and let local edits queue, rather than dropping back to
+      // an empty "disconnected" view. Surface a one-click reconnect instead.
+      driveNeedsReconnect=true;
+    } else {
+      driveConnected=false;
+    }
     updateDriveUI();
     return;
   }
   gAccessToken=resp.access_token;
   gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000);
   driveConnected=true;
+  driveNeedsReconnect=false;
   localStorage.setItem('rdDriveConnected','1');
   connectDriveSession();
 }
 
 function driveSignIn(){
   if(!gTokenClient){ alert('Google sign-in is still loading — please try again in a moment.'); return; }
-  gTokenClient.requestAccessToken({prompt:'consent'});
+  // If we're just resuming a previously-granted session, a silent prompt is
+  // enough (and won't re-show the full permission screen). A brand new
+  // connection needs the explicit consent prompt.
+  gTokenClient.requestAccessToken({prompt: driveNeedsReconnect ? '' : 'consent'});
 }
 
 function driveSignOut(){
   if(gAccessToken){ try{ google.accounts.oauth2.revoke(gAccessToken, ()=>{}); }catch{} }
   gAccessToken=null;gTokenExpiry=0;
-  driveConnected=false;driveLib=null;driveLibraryFileId=null;
+  driveConnected=false;driveNeedsReconnect=false;driveLib=null;driveLibraryFileId=null;
   localStorage.removeItem('rdDriveConnected');
   updateDriveUI();
   if(screen==='library') renderLibrary();
@@ -90,9 +108,16 @@ function ensureAccessToken(){
     const prevCb=gTokenClient.callback;
     gTokenClient.callback=(resp)=>{
       gTokenClient.callback=prevCb;
-      if(resp.error){ reject(new Error(resp.error)); return; }
+      if(resp.error){
+        driveNeedsReconnect=true;
+        updateDriveUI();
+        reject(new Error(resp.error));
+        return;
+      }
       gAccessToken=resp.access_token;
       gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000);
+      driveNeedsReconnect=false;
+      updateDriveUI();
       resolve(gAccessToken);
     };
     gTokenClient.requestAccessToken({prompt:''});
@@ -170,6 +195,7 @@ async function driveDownloadPDF(fileId){
 }
 
 async function driveDeleteFile(fileId){
+  // Files inside appDataFolder can't be trashed via the API — only permanently deleted.
   await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`,{method:'DELETE'});
 }
 
@@ -179,6 +205,7 @@ async function connectDriveSession(){
     await ensureLibraryFile();
     const remote=await driveDownloadJSON(driveLibraryFileId);
     let books=(remote && Array.isArray(remote.books)) ? remote.books : [];
+    // First-ever connect with an empty Drive library: bring over the local one as a starting point.
     if(books.length===0){
       let local=[]; try{ local=JSON.parse(localStorage.getItem('rdLib'))||[]; }catch{}
       if(local.length) books=local;
@@ -225,7 +252,14 @@ function updateDriveUI(){
   const syncBtn=document.getElementById('btn-drive-sync');
   const toolbarBtn=document.getElementById('btn-drive');
   if(!statsEl) return;
-  if(driveConnected){
+  if(driveConnected && driveNeedsReconnect){
+    statsEl.innerHTML=`<div>Status: <span>Reconnect needed</span></div><div>Showing your last synced copy — changes are saved locally until you reconnect.</div>`;
+    connectBtn.textContent='↻ Reconnect Google Drive';
+    connectBtn.style.display='';
+    disconnectBtn.style.display='';
+    syncBtn.style.display='none';
+    if(toolbarBtn){toolbarBtn.classList.add('primary');toolbarBtn.querySelector('span').textContent='Reconnect Drive';}
+  } else if(driveConnected){
     statsEl.innerHTML = driveSyncing
       ? `<div>Status: <span>Syncing…</span></div>`
       : `<div>Status: <span>Connected</span></div><div>Last synced: <span>${driveLastSynced?formatDate(driveLastSynced):'Just now'}</span></div>`;
@@ -235,6 +269,7 @@ function updateDriveUI(){
     if(toolbarBtn){toolbarBtn.classList.add('primary');toolbarBtn.querySelector('span').textContent=driveSyncing?'Syncing…':'Drive Connected';}
   } else {
     statsEl.innerHTML=`<div>Status: <span>Not connected</span></div>`;
+    connectBtn.textContent='☁ Connect Google Drive';
     connectBtn.style.display='';
     disconnectBtn.style.display='none';
     syncBtn.style.display='none';
@@ -682,6 +717,7 @@ function showLoadingView(msg){
   document.getElementById('toolbar-subtitle').style.display='none';
   document.getElementById('btn-invert').style.display='none';
   document.getElementById('btn-rotate').style.display='none';
+  document.getElementById('btn-drive').style.display='none';
 }
 function showLibraryView(){
   screen='library';
@@ -700,6 +736,7 @@ function showLibraryView(){
   document.getElementById('toolbar-subtitle').style.display='none';
   document.getElementById('btn-invert').style.display='none';
   document.getElementById('btn-rotate').style.display='none';
+  document.getElementById('btn-drive').style.display='flex';
 }
 function showReaderView(book){
   screen='reader';
@@ -720,6 +757,7 @@ function showReaderView(book){
   document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
   document.getElementById('btn-invert').style.display='flex';
   document.getElementById('btn-rotate').style.display='flex';
+  document.getElementById('btn-drive').style.display='none';
 }
 
 // ── VIEW TOGGLE ───────────────────────────────────────────────────────
@@ -926,11 +964,13 @@ idz.addEventListener('drop',e=>{
 
 // ── INIT ──────────────────────────────────────────────────────────────
 document.getElementById('btn-drive').addEventListener('click',()=>{
-  if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
+  if(driveNeedsReconnect) driveSignIn();
+  else if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
   else driveSignIn();
 });
 document.getElementById('btn-drive-empty').addEventListener('click',()=>{
-  if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
+  if(driveNeedsReconnect) driveSignIn();
+  else if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
   else driveSignIn();
 });
 document.getElementById('btn-drive-connect').addEventListener('click',driveSignIn);
