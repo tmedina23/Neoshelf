@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="icon" href="images\neoshelf.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer id="gsi-script"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -36,6 +37,8 @@
 
   <button class="tbtn icon-only" id="btn-transfer" title="Export / Import library">⇅</button>
 
+  <button class="tbtn" id="btn-drive" title="Connect Google Drive"><span>☁ Connect Drive</span></button>
+
   <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
 
   <button class="tbtn icon-only" id="btn-invert" title="Invert Page"><img id="img-invert" src="./images/icons/invert.png"></button>
@@ -54,6 +57,7 @@
       <h2>Your library is empty</h2>
       <p>Add PDF books to your library. Your files stay on your device — nothing is uploaded anywhere.</p>
       <button class="add-btn-large" id="btn-add-empty">+ Add your first book</button>
+      <button class="add-btn-large" id="btn-drive-empty">☁ Connect Google Drive</button>
       <button class="add-btn-large" id="btn-import-empty">⬆ Import a backup</button>
     </div>
     <div id="grid-container" style="display:none"></div>
@@ -143,6 +147,7 @@
     <div class="tm-tabs">
       <button class="tm-tab active" data-tab="export">Export</button>
       <button class="tm-tab" data-tab="import">Import</button>
+      <button class="tm-tab" data-tab="drive">Drive Sync</button>
     </div>
  
     <!-- EXPORT -->
@@ -166,6 +171,17 @@
       </div>
       <div id="import-status"></div>
       <p class="export-note">Importing will restore your book list and page positions. Books that already exist in your library keep whichever progress is further ahead.</p>
+    </div>
+
+    <!-- DRIVE SYNC -->
+    <div class="tm-panel" id="tm-drive">
+      <div class="export-stats" id="drive-stats"></div>
+      <p class="export-note">When connected, your books and reading progress are stored in your Google account's hidden app-data space — it never appears in your regular Drive file list and can't be browsed or opened from Drive itself, only from this app. While connected, Drive is the primary copy of your library; this device's local copy is kept as an offline cache.</p>
+      <div class="export-actions">
+        <button class="mbtn confirm" id="btn-drive-connect">☁ Connect Google Drive</button>
+        <button class="mbtn confirm" id="btn-drive-sync" style="display:none">↻ Sync now</button>
+        <button class="mbtn cancel" id="btn-drive-disconnect" style="display:none">Disconnect</button>
+      </div>
     </div>
  
     <div class="tm-footer">

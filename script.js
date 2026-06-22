@@ -33,8 +33,224 @@ btnTheme.addEventListener('click',()=>{
 }
 );
 
+// ── GOOGLE DRIVE INTEGRATION ─────────────────────────────────────────────
+// Paste your own OAuth Client ID (and API key, if you use it elsewhere) below.
+// The Client ID must have this page's origin allowed in Google Cloud Console
+// (APIs & Services → Credentials → OAuth 2.0 Client IDs → Authorized JavaScript origins).
+const GOOGLE_CLIENT_ID = '734848399041-tts7c4l18noljfutj507a8ub4t92lqf0.apps.googleusercontent.com'; // safe to commit publicly — lock it down via "Authorized JavaScript origins" in Google Cloud Console instead
+const DRIVE_SCOPE       = 'https://www.googleapis.com/auth/drive.appdata'; // hidden per-app storage, invisible in the user's Drive UI
+const DRIVE_LIB_FILENAME = 'library.json';
+
+let gTokenClient=null, gAccessToken=null, gTokenExpiry=0;
+let driveConnected=false, driveSyncing=false, driveLastSynced=null;
+let driveLibraryFileId=null, driveLib=null;
+let driveSaveTimer=null;
+
+function initGoogleAuth(){
+  if(!window.google || !google.accounts || !google.accounts.oauth2) return;
+  gTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: handleTokenResponse,
+  });
+  // Try a silent reconnect for returning users (no popup if consent already granted)
+  if(localStorage.getItem('rdDriveConnected')==='1'){
+    gTokenClient.requestAccessToken({prompt:''});
+  }
+}
+
+function handleTokenResponse(resp){
+  if(resp.error){
+    console.warn('Google Drive auth error:',resp.error);
+    driveConnected=false;
+    updateDriveUI();
+    return;
+  }
+  gAccessToken=resp.access_token;
+  gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000);
+  driveConnected=true;
+  localStorage.setItem('rdDriveConnected','1');
+  connectDriveSession();
+}
+
+function driveSignIn(){
+  if(!gTokenClient){ alert('Google sign-in is still loading — please try again in a moment.'); return; }
+  gTokenClient.requestAccessToken({prompt:'consent'});
+}
+
+function driveSignOut(){
+  if(gAccessToken){ try{ google.accounts.oauth2.revoke(gAccessToken, ()=>{}); }catch{} }
+  gAccessToken=null;gTokenExpiry=0;
+  driveConnected=false;driveLib=null;driveLibraryFileId=null;
+  localStorage.removeItem('rdDriveConnected');
+  updateDriveUI();
+  if(screen==='library') renderLibrary();
+}
+
+function ensureAccessToken(){
+  if(gAccessToken && Date.now() < gTokenExpiry-30000) return Promise.resolve(gAccessToken);
+  return new Promise((resolve,reject)=>{
+    if(!gTokenClient) return reject(new Error('Google Drive is not initialized yet.'));
+    const prevCb=gTokenClient.callback;
+    gTokenClient.callback=(resp)=>{
+      gTokenClient.callback=prevCb;
+      if(resp.error){ reject(new Error(resp.error)); return; }
+      gAccessToken=resp.access_token;
+      gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000);
+      resolve(gAccessToken);
+    };
+    gTokenClient.requestAccessToken({prompt:''});
+  });
+}
+
+async function driveFetch(url, opts={}){
+  const token=await ensureAccessToken();
+  opts.headers=Object.assign({}, opts.headers, {Authorization:`Bearer ${token}`});
+  const res=await fetch(url, opts);
+  if(!res.ok && res.status!==404){
+    const text=await res.text().catch(()=>'');
+    throw new Error(`Drive request failed (${res.status}): ${text.slice(0,200)}`);
+  }
+  return res;
+}
+
+async function ensureLibraryFile(){
+  if(driveLibraryFileId) return driveLibraryFileId;
+  const q=encodeURIComponent(`name='${DRIVE_LIB_FILENAME}' and trashed=false`);
+  const res=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=appDataFolder&fields=files(id,name)`);
+  const data=await res.json();
+  if(data.files && data.files.length){
+    driveLibraryFileId=data.files[0].id;
+  } else {
+    driveLibraryFileId=await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:[]});
+  }
+  return driveLibraryFileId;
+}
+
+async function driveUploadJSON(name, obj, fileId=null){
+  const metadata=fileId? {name} : {name, parents:['appDataFolder']};
+  const boundary='neoshelf-'+Date.now();
+  const body=
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`+
+    `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(obj)}\r\n--${boundary}--`;
+  const url=fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+  const res=await driveFetch(url,{
+    method:fileId?'PATCH':'POST',
+    headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
+    body
+  });
+  const data=await res.json();
+  return data.id;
+}
+
+async function driveDownloadJSON(fileId){
+  const res=await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+  return res.json();
+}
+
+async function driveUploadPDF(file, existingFileId=null){
+  const metadata=existingFileId? {name:file.name} : {name:file.name, parents:['appDataFolder']};
+  const boundary='neoshelf-'+Date.now();
+  const head=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`;
+  const tail=`\r\n--${boundary}--`;
+  const body=new Blob([head, file, tail]);
+  const url=existingFileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+  const res=await driveFetch(url,{
+    method:existingFileId?'PATCH':'POST',
+    headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
+    body
+  });
+  const data=await res.json();
+  return data.id;
+}
+
+async function driveDownloadPDF(fileId){
+  const res=await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+  return res.arrayBuffer();
+}
+
+async function driveDeleteFile(fileId){
+  // Files inside appDataFolder can't be trashed via the API — only permanently deleted.
+  await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`,{method:'DELETE'});
+}
+
+async function connectDriveSession(){
+  try{
+    driveSyncing=true; updateDriveUI();
+    await ensureLibraryFile();
+    const remote=await driveDownloadJSON(driveLibraryFileId);
+    let books=(remote && Array.isArray(remote.books)) ? remote.books : [];
+    // First-ever connect with an empty Drive library: bring over the local one as a starting point.
+    if(books.length===0){
+      let local=[]; try{ local=JSON.parse(localStorage.getItem('rdLib'))||[]; }catch{}
+      if(local.length) books=local;
+    }
+    driveLib=books;
+    localStorage.setItem('rdDriveLibCache', JSON.stringify(driveLib));
+    driveLastSynced=Date.now();
+    driveSyncing=false;
+    updateDriveUI();
+    if(screen==='library') renderLibrary();
+    pushDriveLibrary();
+  }catch(err){
+    console.error('Drive connect failed', err);
+    driveSyncing=false;
+    driveConnected=false;
+    updateDriveUI();
+    alert('Could not connect to Google Drive: '+err.message);
+  }
+}
+
+function queueDriveLibrarySync(){
+  clearTimeout(driveSaveTimer);
+  driveSaveTimer=setTimeout(pushDriveLibrary, 1200);
+}
+
+async function pushDriveLibrary(){
+  if(!driveConnected || !driveLib) return;
+  try{
+    driveSyncing=true; updateDriveUI();
+    await ensureLibraryFile();
+    await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:driveLib}, driveLibraryFileId);
+    driveLastSynced=Date.now();
+  }catch(err){
+    console.error('Drive sync failed', err);
+  }finally{
+    driveSyncing=false; updateDriveUI();
+  }
+}
+
+function updateDriveUI(){
+  const statsEl=document.getElementById('drive-stats');
+  const connectBtn=document.getElementById('btn-drive-connect');
+  const disconnectBtn=document.getElementById('btn-drive-disconnect');
+  const syncBtn=document.getElementById('btn-drive-sync');
+  const toolbarBtn=document.getElementById('btn-drive');
+  if(!statsEl) return;
+  if(driveConnected){
+    statsEl.innerHTML = driveSyncing
+      ? `<div>Status: <span>Syncing…</span></div>`
+      : `<div>Status: <span>Connected</span></div><div>Last synced: <span>${driveLastSynced?formatDate(driveLastSynced):'Just now'}</span></div>`;
+    connectBtn.style.display='none';
+    disconnectBtn.style.display='';
+    syncBtn.style.display='';
+    if(toolbarBtn){toolbarBtn.classList.add('primary');toolbarBtn.querySelector('span').textContent=driveSyncing?'Syncing…':'Drive Connected';}
+  } else {
+    statsEl.innerHTML=`<div>Status: <span>Not connected</span></div>`;
+    connectBtn.style.display='';
+    disconnectBtn.style.display='none';
+    syncBtn.style.display='none';
+    if(toolbarBtn){toolbarBtn.classList.remove('primary');toolbarBtn.querySelector('span').textContent='Connect Drive';}
+  }
+}
+
 // ── DATA ──────────────────────────────────────────────────────────────
 function getLib(){
+    if(driveConnected && driveLib) return driveLib;
     try {
         return JSON.parse(localStorage.getItem('rdLib'))||[];
     } catch {
@@ -43,7 +259,13 @@ function getLib(){
 }
 
 function saveLib(lib) {
-    localStorage.setItem('rdLib',JSON.stringify(lib));
+    if(driveConnected){
+        driveLib=lib;
+        localStorage.setItem('rdDriveLibCache', JSON.stringify(lib));
+        queueDriveLibrarySync();
+    } else {
+        localStorage.setItem('rdLib',JSON.stringify(lib));
+    }
 }
 
 function saveProgress(name,page) {
@@ -252,7 +474,12 @@ async function addBook(file){
     const thumb=await makeThumb(pdf);
     const lib=getLib();
     if(!lib.find(b=>b.name===file.name)){
-      lib.unshift({name:file.name,title:file.name.replace(/\.pdf$/i,''),author:file.author||'Unknown',page:1,total,thumb,lastRead:null,added:Date.now()});
+      const book={name:file.name,title:file.name.replace(/\.pdf$/i,''),author:file.author||'Unknown',page:1,total,thumb,lastRead:null,added:Date.now()};
+      if(driveConnected){
+        document.getElementById('loading-text').textContent='Uploading to Drive…';
+        book.driveFileId=await driveUploadPDF(file);
+      }
+      lib.unshift(book);
       saveLib(lib);
       updateBook(lib[0]);
     }
@@ -272,6 +499,7 @@ async function makeThumb(pdf){
 
 // OPEN BOOK
 function promptOpen(book){
+  if(book.driveFileId){ openFromDrive(book); return; }
   pendingBook=book;
   document.getElementById('open-title').textContent=book.title
   document.getElementById('open-author').textContent=book.author||'Unknown';
@@ -293,6 +521,35 @@ document.getElementById('open-cancel').addEventListener('click',()=>{document.ge
 document.getElementById('open-overlay').addEventListener('click',e=>{if(e.target.id==='open-overlay'){document.getElementById('open-overlay').classList.remove('open');pendingBook=null;}});
 document.getElementById('open-confirm').addEventListener('click',()=>{document.getElementById('open-overlay').classList.remove('open');document.getElementById('fi-open').click();});
 
+async function enterReader(pdf, book){
+  pdfDoc=pdf;totalPages=pdf.numPages;curBookName=book.name;curPage=book.page||1;
+  scale=await calcFitScale();
+  showReaderView(book);
+  await renderPage(curPage);
+  updateReaderUI();
+  // Regenerate thumbnail silently if missing (e.g. after an import)
+  if(!book.thumb){
+    makeThumb(pdf).then(thumb=>{
+      if(!thumb) return;
+      const lib=getLib();
+      const b=lib.find(x=>x.name===book.name);
+      if(b){b.thumb=thumb;saveLib(lib);}
+    });
+  }
+}
+
+async function openFromDrive(book){
+  showLoadingView('Opening from Drive…');
+  try{
+    const buf=await driveDownloadPDF(book.driveFileId);
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    await enterReader(pdf, book);
+  }catch(err){
+    showLibraryView();
+    alert('Could not open this book from Drive: '+err.message);
+  }
+}
+
 document.getElementById('fi-open').addEventListener('change',async e=>{
   const f=e.target.files[0];
   if(!f||!pendingBook){e.target.value='';return;}
@@ -306,19 +563,17 @@ document.getElementById('fi-open').addEventListener('change',async e=>{
   try{
     const buf=await f.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-    pdfDoc=pdf;totalPages=pdf.numPages;curBookName=book.name;curPage=book.page||1;
-    scale=await calcFitScale();
-    showReaderView(book);
-    await renderPage(curPage);
-    updateReaderUI();
-    // Regenerate thumbnail silently if missing (e.g. after an import)
-    if(!book.thumb){
-      makeThumb(pdf).then(thumb=>{
-        if(!thumb) return;
-        const lib=getLib();
-        const b=lib.find(b=>b.name===book.name);
-        if(b){b.thumb=thumb;saveLib(lib);}
-      });
+    await enterReader(pdf, book);
+    // If Drive is connected and this is a legacy local-only book, upload it in the
+    // background so it becomes available from other devices too.
+    if(driveConnected && !book.driveFileId){
+      driveUploadPDF(f)
+        .then(fileId=>{
+          const lib=getLib();
+          const b=lib.find(x=>x.name===book.name);
+          if(b){ b.driveFileId=fileId; saveLib(lib); }
+        })
+        .catch(err=>console.warn('Could not migrate book to Drive', err));
     }
   }catch(err){showLibraryView();alert('Could not open PDF: '+err.message);}
 });
@@ -527,12 +782,16 @@ function showCtx(e,book){
 document.addEventListener('click',()=>ctxMenu.classList.remove('open'));
 document.getElementById('ctx-read').addEventListener('click',()=>{if(ctxBook)promptOpen(ctxBook);ctxBook=null;});
 document.getElementById('ctx-update').addEventListener('click',()=>{if(ctxBook)updateBook(ctxBook);ctxBook=null;});
-document.getElementById('ctx-remove').addEventListener('click',()=>{
+document.getElementById('ctx-remove').addEventListener('click',async ()=>{
   if(!ctxBook)return;
-  if(confirm(`Remove "${ctxBook.name.replace(/\.pdf$/i,'')}" from your library?`)){
-    saveLib(getLib().filter(b=>b.name!==ctxBook.name));renderLibrary();
+  const book=ctxBook;ctxBook=null;
+  const driveNote = (driveConnected && book.driveFileId) ? ' This will also permanently delete it from Google Drive.' : '';
+  if(confirm(`Remove "${book.name.replace(/\.pdf$/i,'')}" from your library?${driveNote}`)){
+    saveLib(getLib().filter(b=>b.name!==book.name));renderLibrary();
+    if(driveConnected && book.driveFileId){
+      driveDeleteFile(book.driveFileId).catch(err=>console.warn('Could not delete Drive file', err));
+    }
   }
-  ctxBook=null;
 });
 
 // ── RESIZE ────────────────────────────────────────────────────────────
@@ -563,11 +822,7 @@ function openTransferModal(){
 document.getElementById('btn-transfer').addEventListener('click',openTransferModal);
 document.getElementById('btn-import-empty').addEventListener('click',()=>{
   openTransferModal();
-  // Switch straight to the import tab
-  document.querySelectorAll('.tm-tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tm-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelector('.tm-tab[data-tab="import"]').classList.add('active');
-  document.getElementById('tm-import').classList.add('active');
+  switchTransferTab('import');
 });
 document.getElementById('transfer-close').addEventListener('click',()=>document.getElementById('transfer-overlay').classList.remove('open'));
 document.getElementById('transfer-overlay').addEventListener('click',e=>{
@@ -575,13 +830,12 @@ document.getElementById('transfer-overlay').addEventListener('click',e=>{
 });
 
 // Tab switching
+function switchTransferTab(name){
+  document.querySelectorAll('.tm-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.tm-panel').forEach(p=>p.classList.toggle('active', p.id==='tm-'+name));
+}
 document.querySelectorAll('.tm-tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.tm-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tm-panel').forEach(p=>p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('tm-'+tab.dataset.tab).classList.add('active');
-  });
+  tab.addEventListener('click',()=>switchTransferTab(tab.dataset.tab));
 });
  
 // ── EXPORT ────────────────────────────────────────────────────────────
@@ -677,5 +931,29 @@ idz.addEventListener('drop',e=>{
 });
 
 // ── INIT ──────────────────────────────────────────────────────────────
+document.getElementById('btn-drive').addEventListener('click',()=>{
+  if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
+  else driveSignIn();
+});
+document.getElementById('btn-drive-empty').addEventListener('click',()=>{
+  if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
+  else driveSignIn();
+});
+document.getElementById('btn-drive-connect').addEventListener('click',driveSignIn);
+document.getElementById('btn-drive-disconnect').addEventListener('click',()=>{
+  if(confirm('Disconnect Google Drive? Your library will switch back to this device only.')) driveSignOut();
+});
+document.getElementById('btn-drive-sync').addEventListener('click',()=>{ connectDriveSession(); });
+
+// Google Identity Services loads asynchronously — initialize whenever it's ready,
+// regardless of whether it finished loading before or after this script ran.
+if(window.google && window.google.accounts && window.google.accounts.oauth2){
+  initGoogleAuth();
+} else {
+  const gsiScript=document.getElementById('gsi-script');
+  if(gsiScript) gsiScript.addEventListener('load', initGoogleAuth);
+}
+updateDriveUI();
+
 showLibraryView();
 renderLibrary();
