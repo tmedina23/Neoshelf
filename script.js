@@ -37,17 +37,19 @@ btnTheme.addEventListener('click',()=>{
 const GOOGLE_CLIENT_ID = '734848399041-tts7c4l18noljfutj507a8ub4t92lqf0.apps.googleusercontent.com';
 const DRIVE_SCOPE       = 'https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_LIB_FILENAME = 'library.json';
+const AUTH_SCOPES       = DRIVE_SCOPE + ' email';
 
 let gTokenClient=null, gAccessToken=null, gTokenExpiry=0;
 let driveConnected=false, driveSyncing=false, driveLastSynced=null, driveNeedsReconnect=false;
 let driveLibraryFileId=null, driveLib=null;
 let driveSaveTimer=null;
+let driveAccountHint=localStorage.getItem('rdDriveEmail')||null;
 
 function initGoogleAuth(){
   if(!window.google || !google.accounts || !google.accounts.oauth2) return;
   gTokenClient=google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
-    scope: DRIVE_SCOPE,
+    scope: AUTH_SCOPES,
     callback: handleTokenResponse,
   });
   if(localStorage.getItem('rdDriveConnected')==='1'){
@@ -58,8 +60,28 @@ function initGoogleAuth(){
     driveConnected=true;
     updateDriveUI();
     if(screen==='library') renderLibrary();
-    gTokenClient.requestAccessToken({prompt:''});
+    requestSilentToken();
   }
+}
+
+function requestSilentToken(){
+  const opts={prompt:''};
+  if(driveAccountHint) opts.hint=driveAccountHint;
+  gTokenClient.requestAccessToken(opts);
+}
+
+async function captureDriveAccountEmail(){
+  if(driveAccountHint) return;
+  try{
+    const res=await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{headers:{Authorization:`Bearer ${gAccessToken}`}});
+    if(res.ok){
+      const info=await res.json();
+      if(info.email){
+        driveAccountHint=info.email;
+        localStorage.setItem('rdDriveEmail', info.email);
+      }
+    }
+  }catch(err){ console.warn('Could not remember Drive account for faster reconnect', err); }
 }
 
 function handleTokenResponse(resp){
@@ -81,22 +103,24 @@ function handleTokenResponse(resp){
   driveConnected=true;
   driveNeedsReconnect=false;
   localStorage.setItem('rdDriveConnected','1');
+  captureDriveAccountEmail();
   connectDriveSession();
 }
 
 function driveSignIn(){
   if(!gTokenClient){ alert('Google sign-in is still loading — please try again in a moment.'); return; }
-  // If we're just resuming a previously-granted session, a silent prompt is
-  // enough (and won't re-show the full permission screen). A brand new
-  // connection needs the explicit consent prompt.
-  gTokenClient.requestAccessToken({prompt: driveNeedsReconnect ? '' : 'consent'});
+  const opts={prompt: driveNeedsReconnect ? '' : 'consent'};
+  if(driveAccountHint) opts.hint=driveAccountHint;
+  gTokenClient.requestAccessToken(opts);
 }
 
 function driveSignOut(){
   if(gAccessToken){ try{ google.accounts.oauth2.revoke(gAccessToken, ()=>{}); }catch{} }
   gAccessToken=null;gTokenExpiry=0;
   driveConnected=false;driveNeedsReconnect=false;driveLib=null;driveLibraryFileId=null;
+  driveAccountHint=null;
   localStorage.removeItem('rdDriveConnected');
+  localStorage.removeItem('rdDriveEmail');
   updateDriveUI();
   if(screen==='library') renderLibrary();
 }
@@ -117,10 +141,13 @@ function ensureAccessToken(){
       gAccessToken=resp.access_token;
       gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000);
       driveNeedsReconnect=false;
+      captureDriveAccountEmail();
       updateDriveUI();
       resolve(gAccessToken);
     };
-    gTokenClient.requestAccessToken({prompt:''});
+    const opts={prompt:''};
+    if(driveAccountHint) opts.hint=driveAccountHint;
+    gTokenClient.requestAccessToken(opts);
   });
 }
 
