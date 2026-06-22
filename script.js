@@ -34,11 +34,8 @@ btnTheme.addEventListener('click',()=>{
 );
 
 // ── GOOGLE DRIVE INTEGRATION ─────────────────────────────────────────────
-// Paste your own OAuth Client ID (and API key, if you use it elsewhere) below.
-// The Client ID must have this page's origin allowed in Google Cloud Console
-// (APIs & Services → Credentials → OAuth 2.0 Client IDs → Authorized JavaScript origins).
-const GOOGLE_CLIENT_ID = '734848399041-tts7c4l18noljfutj507a8ub4t92lqf0.apps.googleusercontent.com'; // safe to commit publicly — lock it down via "Authorized JavaScript origins" in Google Cloud Console instead
-const DRIVE_SCOPE       = 'https://www.googleapis.com/auth/drive.appdata'; // hidden per-app storage, invisible in the user's Drive UI
+const GOOGLE_CLIENT_ID = '734848399041-tts7c4l18noljfutj507a8ub4t92lqf0.apps.googleusercontent.com';
+const DRIVE_SCOPE       = 'https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_LIB_FILENAME = 'library.json';
 
 let gTokenClient=null, gAccessToken=null, gTokenExpiry=0;
@@ -53,7 +50,6 @@ function initGoogleAuth(){
     scope: DRIVE_SCOPE,
     callback: handleTokenResponse,
   });
-  // Try a silent reconnect for returning users (no popup if consent already granted)
   if(localStorage.getItem('rdDriveConnected')==='1'){
     gTokenClient.requestAccessToken({prompt:''});
   }
@@ -174,7 +170,6 @@ async function driveDownloadPDF(fileId){
 }
 
 async function driveDeleteFile(fileId){
-  // Files inside appDataFolder can't be trashed via the API — only permanently deleted.
   await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`,{method:'DELETE'});
 }
 
@@ -184,7 +179,6 @@ async function connectDriveSession(){
     await ensureLibraryFile();
     const remote=await driveDownloadJSON(driveLibraryFileId);
     let books=(remote && Array.isArray(remote.books)) ? remote.books : [];
-    // First-ever connect with an empty Drive library: bring over the local one as a starting point.
     if(books.length===0){
       let local=[]; try{ local=JSON.parse(localStorage.getItem('rdLib'))||[]; }catch{}
       if(local.length) books=local;

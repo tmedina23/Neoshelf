@@ -4,6 +4,9 @@
 
 Built with ease in mind, Neoshelf is a minimal web app for reading books in PDF format on any device with a web browser. It offers a personalized and stylish library to keep track of all your literature. Multiple view modes with dark and light modes to keep track of your progress, as you wish. 
 
+## Testing Google Drive Features
+- Ability to connect your google account to seemlessly track appdata across devices
+
 Features:
 - Progress is saved on the device
 - Nothing is uploaded
