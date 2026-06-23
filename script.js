@@ -7,29 +7,30 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
     document.documentElement.setAttribute('data-theme','dark');
     document.getElementById('img-theme').src = './images/icons/light.png';
     document.getElementById('img-rotate').src = './images/icons/rotate-D.png';
+    document.querySelector('#btn-theme span').textContent = 'Light mode';
   }
 })();
-function themeIcon(){
-    var btnTheme=document.getElementById('btn-theme');
-    return btnTheme.src === './images/icons/dark.png'?'./images/icons/light.png':'./images/icons/dark.png';
-}
 
+const btnThemeRow=document.getElementById('btn-theme');
 btnTheme=document.getElementById('img-theme');
 btnInvert = document.getElementById('img-invert');
 btnRotate = document.getElementById('img-rotate');
-    
-btnTheme.addEventListener('click',()=>{
+
+btnThemeRow.addEventListener('click',()=>{
   const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme',dark?'light':'dark');
   localStorage.setItem('rdTheme',dark?'light':'dark');
   if(dark) {
     btnTheme.src = './images/icons/dark.png';
     btnRotate.src = './images/icons/rotate-L.png';
+    btnThemeRow.querySelector('span').textContent='Dark mode';
   } else {  
     btnTheme.src = './images/icons/light.png';
     btnRotate.src = './images/icons/rotate-D.png';
+    btnThemeRow.querySelector('span').textContent='Light mode';
   }
   if(currentView==='shelf') renderShelf();
+  closeMoreMenu();
 }
 );
 
@@ -700,6 +701,18 @@ document.getElementById('btn-zoom-out').addEventListener('click',()=>setZoom(sca
 function goHome(){pdfDoc=null;showLibraryView();renderLibrary();}
 document.getElementById('btn-back').addEventListener('click',goHome);
 
+// ── MORE OPTIONS DROPDOWN ───────────────────────────────────────────────
+const moreMenu=document.getElementById('more-menu');
+const btnMenu=document.getElementById('btn-menu');
+function closeMoreMenu(){moreMenu.classList.remove('open');}
+btnMenu.addEventListener('click',e=>{
+  e.stopPropagation();
+  moreMenu.classList.toggle('open');
+});
+document.addEventListener('click',e=>{
+  if(!moreMenu.contains(e.target) && e.target!==btnMenu) closeMoreMenu();
+});
+
 // invert page
 function invertColors(invert){
   const canvas=document.getElementById('pdf-canvas');
@@ -712,6 +725,7 @@ document.getElementById('btn-invert').addEventListener('click',e=>{
   const btn = document.getElementById('img-invert');
   btn.src = btn.src.includes('uninvert.png') ? './images/icons/invert.png' : './images/icons/uninvert.png';
   localStorage.setItem('rdInvert',invert?'1':'0');
+  closeMoreMenu();
 });
 
 function rotatePage(){
@@ -722,12 +736,14 @@ function rotatePage(){
                 style.includes('rotate(270deg)')?'rotate(0deg)':'rotate(90deg)';
   canvas.style.transform=rotate;
   localStorage.setItem('rdRotate',rotate);
+  closeMoreMenu();
 }
 document.getElementById('btn-rotate').addEventListener('click',rotatePage);
 
 // SCREEN SWITCHING
 function showLoadingView(msg){
   screen='loading';
+  closeMoreMenu();
   document.getElementById('library-view').style.display='none';
   document.getElementById('loading-view').style.display='flex';
   document.getElementById('reader-view').style.display='none';
@@ -745,9 +761,11 @@ function showLoadingView(msg){
   document.getElementById('btn-invert').style.display='none';
   document.getElementById('btn-rotate').style.display='none';
   document.getElementById('btn-drive').style.display='none';
+  document.getElementById('btn-transfer').style.display='';
 }
 function showLibraryView(){
   screen='library';
+  closeMoreMenu();
   document.getElementById('library-view').style.display='block';
   document.getElementById('loading-view').style.display='none';
   document.getElementById('reader-view').style.display='none';
@@ -764,9 +782,11 @@ function showLibraryView(){
   document.getElementById('btn-invert').style.display='none';
   document.getElementById('btn-rotate').style.display='none';
   document.getElementById('btn-drive').style.display='flex';
+  document.getElementById('btn-transfer').style.display='';
 }
 function showReaderView(book){
   screen='reader';
+  closeMoreMenu();
   document.getElementById('library-view').style.display='none';
   document.getElementById('loading-view').style.display='none';
   document.getElementById('reader-view').style.display='flex';
@@ -878,7 +898,7 @@ function openTransferModal(){
   document.getElementById('transfer-overlay').classList.add('open');
 }
  
-document.getElementById('btn-transfer').addEventListener('click',openTransferModal);
+document.getElementById('btn-transfer').addEventListener('click',()=>{closeMoreMenu();openTransferModal();});
 document.getElementById('btn-import-empty').addEventListener('click',()=>{
   openTransferModal();
   switchTransferTab('import');
@@ -991,6 +1011,7 @@ idz.addEventListener('drop',e=>{
 
 // ── INIT ──────────────────────────────────────────────────────────────
 document.getElementById('btn-drive').addEventListener('click',()=>{
+  closeMoreMenu();
   if(driveNeedsReconnect) driveSignIn();
   else if(driveConnected){ openTransferModal(); switchTransferTab('drive'); }
   else driveSignIn();

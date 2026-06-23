@@ -35,15 +35,19 @@
     <button class="vtbtn" id="vt-list" title="List">☰</button>
   </div>
 
-  <button class="tbtn icon-only" id="btn-transfer" title="Export / Import library">⇅</button>
-
-  <button class="tbtn" id="btn-drive" title="Connect Google Drive"><span>☁ Connect Drive</span></button>
-
   <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
 
-  <button class="tbtn icon-only" id="btn-invert" title="Invert Page"><img id="img-invert" src="./images/icons/invert.png"></button>
-  <button class="tbtn icon-only" id="btn-rotate" title="Rotate Page"><img id="img-rotate" src="./images/icons/rotate-L.png"></button>
-  <button class="tbtn icon-only" id="btn-theme" title="Toggle theme"><img id="img-theme" src="./images/icons/dark.png"></button>
+  <div id="more-wrap">
+    <button class="tbtn icon-only" id="btn-menu" title="More options">⋯</button>
+    <div id="more-menu">
+      <div class="mm-item" id="btn-theme"><img id="img-theme" src="./images/icons/dark.png"><span>Dark mode</span></div>
+      <div class="mm-item" id="btn-invert" title="Invert Page"><img id="img-invert" src="./images/icons/invert.png"><span>Invert page</span></div>
+      <div class="mm-item" id="btn-rotate" title="Rotate Page"><img id="img-rotate" src="./images/icons/rotate-L.png"><span>Rotate page</span></div>
+      <div class="mm-sep"></div>
+      <div class="mm-item" id="btn-drive" title="Connect Google Drive"><span>☁ Connect Drive</span></div>
+      <div class="mm-item" id="btn-transfer" title="Export / Import library"><span>⇅ Export / Import</span></div>
+    </div>
+  </div>
 </div>
 
 <!-- PROGRESS BAR -->
