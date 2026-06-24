@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="icon" href="images\neoshelf.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer id="gsi-script"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -34,13 +35,19 @@
     <button class="vtbtn" id="vt-list" title="List">☰</button>
   </div>
 
-  <button class="tbtn icon-only" id="btn-transfer" title="Export / Import library">⇅</button>
-
   <button class="tbtn primary" id="btn-add"><span>+ Add book</span></button>
 
-  <button class="tbtn icon-only" id="btn-invert" title="Invert Page"><img id="img-invert" src="./images/icons/invert.png"></button>
-  <button class="tbtn icon-only" id="btn-rotate" title="Rotate Page"><img id="img-rotate" src="./images/icons/rotate-L.png"></button>
-  <button class="tbtn icon-only" id="btn-theme" title="Toggle theme"><img id="img-theme" src="./images/icons/dark.png"></button>
+  <div id="more-wrap">
+    <button class="tbtn icon-only" id="btn-menu" title="More options">⋯</button>
+    <div id="more-menu">
+      <div class="mm-item" id="btn-theme"><img id="img-theme" src="./images/icons/dark.png"><span>Dark mode</span></div>
+      <div class="mm-item" id="btn-invert" title="Invert Page"><img id="img-invert" src="./images/icons/invert.png"><span>Invert page</span></div>
+      <div class="mm-item" id="btn-rotate" title="Rotate Page"><img id="img-rotate" src="./images/icons/rotate-L.png"><span>Rotate page</span></div>
+      <div class="mm-sep"></div>
+      <div class="mm-item" id="btn-drive" title="Connect Google Drive"><span>☁ Connect Drive</span></div>
+      <div class="mm-item" id="btn-transfer" title="Export / Import library"><span>⇅ Export / Import</span></div>
+    </div>
+  </div>
 </div>
 
 <!-- PROGRESS BAR -->
@@ -54,6 +61,7 @@
       <h2>Your library is empty</h2>
       <p>Add PDF books to your library. Your files stay on your device — nothing is uploaded anywhere.</p>
       <button class="add-btn-large" id="btn-add-empty">+ Add your first book</button>
+      <button class="add-btn-large" id="btn-drive-empty">☁ Connect Google Drive</button>
       <button class="add-btn-large" id="btn-import-empty">⬆ Import a backup</button>
     </div>
     <div id="grid-container" style="display:none"></div>
@@ -83,13 +91,44 @@
 <div id="modal-overlay">
   <div id="modal">
     <h2>Add to library</h2>
-    <p>Select a PDF from your device. A cover thumbnail and your reading progress are saved — the file itself stays on your device.</p>
-    <div id="drop-zone">
-      <div class="dz-icon">📄</div>
-      <div class="dz-text">Drop a PDF here, or click to browse</div>
+    <div class="tm-tabs" id="add-tabs">
+      <button class="tm-tab active" data-tab="pdf">From PDF</button>
+      <button class="tm-tab" data-tab="manual">Track manually</button>
     </div>
+
+    <div class="tm-panel active" id="add-pdf-panel">
+      <p>Select a PDF from your device. A cover thumbnail and your reading progress are saved — the file itself stays on your device.</p>
+      <div id="drop-zone">
+        <div class="dz-icon">📄</div>
+        <div class="dz-text">Drop a PDF here, or click to browse</div>
+      </div>
+    </div>
+
+    <div class="tm-panel" id="add-manual-panel">
+      <p>No PDF? Add a book you're reading elsewhere just to track your progress.</p>
+      <div class="manual-field">
+        <label for="manual-title">Title</label>
+        <input type="text" id="manual-title" placeholder="Book title">
+      </div>
+      <div class="manual-field">
+        <label for="manual-author">Author</label>
+        <input type="text" id="manual-author" placeholder="Author (optional)">
+      </div>
+      <div class="manual-row">
+        <div class="manual-field">
+          <label for="manual-page">Current page</label>
+          <input type="number" id="manual-page" min="1" value="1">
+        </div>
+        <div class="manual-field">
+          <label for="manual-total">Total pages</label>
+          <input type="number" id="manual-total" min="1" placeholder="optional">
+        </div>
+      </div>
+    </div>
+
     <div class="modal-btns">
       <button class="mbtn cancel" id="modal-cancel">Cancel</button>
+      <button class="mbtn confirm" id="manual-add-confirm" style="display:none">Add book</button>
     </div>
   </div>
 </div>
@@ -120,6 +159,34 @@
       <input id="update-author" type="text"></input>
       <div class="sub" id="update-sub"></div>
     </div>
+
+    <div class="update-section">
+      <label class="update-label">Cover</label>
+      <div class="update-thumb-controls">
+        <button class="mbtn cancel" id="update-thumb-upload-btn">Upload image…</button>
+        <button class="mbtn cancel" id="update-thumb-reset-btn">Use generated cover</button>
+      </div>
+    </div>
+
+    <div class="update-section">
+      <label class="update-label">Spine color</label>
+      <div class="color-swatches" id="color-swatches"></div>
+    </div>
+
+    <div class="update-section">
+      <label class="update-label">Reading progress</label>
+      <div class="manual-row">
+        <div class="manual-field">
+          <label for="update-page">Current page</label>
+          <input type="number" id="update-page" min="1">
+        </div>
+        <div class="manual-field">
+          <label for="update-total">Total pages</label>
+          <input type="number" id="update-total" min="1" placeholder="unknown">
+        </div>
+      </div>
+    </div>
+
     <p class="note">Update the book's information.</p>
     <div class="modal-btns">
       <button class="mbtn cancel" id="update-cancel">Cancel</button>
@@ -143,6 +210,7 @@
     <div class="tm-tabs">
       <button class="tm-tab active" data-tab="export">Export</button>
       <button class="tm-tab" data-tab="import">Import</button>
+      <button class="tm-tab" data-tab="drive">Drive Sync</button>
     </div>
  
     <!-- EXPORT -->
@@ -167,6 +235,17 @@
       <div id="import-status"></div>
       <p class="export-note">Importing will restore your book list and page positions. Books that already exist in your library keep whichever progress is further ahead.</p>
     </div>
+
+    <!-- DRIVE SYNC -->
+    <div class="tm-panel" id="tm-drive">
+      <div class="export-stats" id="drive-stats"></div>
+      <p class="export-note">When connected, your books and reading progress are stored in your Google account's hidden app-data space — it never appears in your regular Drive file list and can't be browsed or opened from Drive itself, only from this app. While connected, Drive is the primary copy of your library; this device's local copy is kept as an offline cache.</p>
+      <div class="export-actions">
+        <button class="mbtn confirm" id="btn-drive-connect">☁ Connect Google Drive</button>
+        <button class="mbtn confirm" id="btn-drive-sync" style="display:none">↻ Sync now</button>
+        <button class="mbtn cancel" id="btn-drive-disconnect" style="display:none">Disconnect</button>
+      </div>
+    </div>
  
     <div class="tm-footer">
       <button class="mbtn cancel" id="transfer-close">Close</button>
@@ -178,6 +257,7 @@
 <input type="file" id="fi-add" accept=".pdf" style="display:none">
 <input type="file" id="fi-open" accept=".pdf" style="display:none">
 <input type="file" id="fi-import" accept=".json" style="display:none">
+<input type="file" id="fi-thumb" accept="image/*" style="display:none">
 
 <script src="script.js"></script>
 

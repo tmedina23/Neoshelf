@@ -4,10 +4,14 @@
 
 Built with ease in mind, Neoshelf is a minimal web app for reading books in PDF format on any device with a web browser. It offers a personalized and stylish library to keep track of all your literature. Multiple view modes with dark and light modes to keep track of your progress, as you wish. 
 
+## Testing Google Drive Integration
+- Ability to connect your google account to seemlessly track app data across devices
+
 Features:
-- Progress is saved on the device
-- Nothing is uploaded
-- Import/Export to transfer progress to other devices
+- Progress is saved to your drive
+- Books are uploaded to your drive
+- PDFs no longer need to be reselcted
+- Import/Export library to json
 - Three library view modes
 - Dark and Light mode
 - Zoom
@@ -15,7 +19,7 @@ Features:
 - Rotating the page in 90-degree increments
 
 Limitations:
-- PDF must be reselected from the device when opened; books are not uploaded and stay on the device.
+- Large PDFs may take a few moments to load from your drive
 - Only supports PDF format
 
 Future:
@@ -24,3 +28,10 @@ Future:
 - Search, Filter, and Sort the library
 - Search for keywords in reader view
 - A more customizable experience
+
+## To Remove Stored Data from Google Drive:
+- visit: https://drive.google.com/drive/settings
+- Select the "Manage Apps" tab on the sidebar
+- Scroll to find "Neoshelf"
+- Click on the Options dropdown
+- Click "Delete hidden app data"
