@@ -126,8 +126,13 @@ function driveSignOut(){
   if(screen==='library') renderLibrary();
 }
 
-function ensureAccessToken(){
+function ensureAccessToken(interactive=true){
   if(gAccessToken && Date.now() < gTokenExpiry-30000) return Promise.resolve(gAccessToken);
+  if(!interactive){
+    driveNeedsReconnect=true;
+    updateDriveUI();
+    return Promise.reject(new Error('Drive session expired — reconnect needed.'));
+  }
   return new Promise((resolve,reject)=>{
     if(!gTokenClient) return reject(new Error('Google Drive is not initialized yet.'));
     const prevCb=gTokenClient.callback;
@@ -152,8 +157,8 @@ function ensureAccessToken(){
   });
 }
 
-async function driveFetch(url, opts={}){
-  const token=await ensureAccessToken();
+async function driveFetch(url, opts={}, interactive=true){
+  const token=await ensureAccessToken(interactive);
   opts.headers=Object.assign({}, opts.headers, {Authorization:`Bearer ${token}`});
   const res=await fetch(url, opts);
   if(!res.ok && res.status!==404){
@@ -163,20 +168,20 @@ async function driveFetch(url, opts={}){
   return res;
 }
 
-async function ensureLibraryFile(){
+async function ensureLibraryFile(interactive=true){
   if(driveLibraryFileId) return driveLibraryFileId;
   const q=encodeURIComponent(`name='${DRIVE_LIB_FILENAME}' and trashed=false`);
-  const res=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=appDataFolder&fields=files(id,name)`);
+  const res=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=appDataFolder&fields=files(id,name)`,{},interactive);
   const data=await res.json();
   if(data.files && data.files.length){
     driveLibraryFileId=data.files[0].id;
   } else {
-    driveLibraryFileId=await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:[]});
+    driveLibraryFileId=await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:[]}, null, interactive);
   }
   return driveLibraryFileId;
 }
 
-async function driveUploadJSON(name, obj, fileId=null){
+async function driveUploadJSON(name, obj, fileId=null, interactive=true){
   const metadata=fileId? {name} : {name, parents:['appDataFolder']};
   const boundary='neoshelf-'+Date.now();
   const body=
@@ -189,7 +194,7 @@ async function driveUploadJSON(name, obj, fileId=null){
     method:fileId?'PATCH':'POST',
     headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
     body
-  });
+  },interactive);
   const data=await res.json();
   return data.id;
 }
@@ -223,7 +228,6 @@ async function driveDownloadPDF(fileId){
 }
 
 async function driveDeleteFile(fileId){
-  // Files inside appDataFolder can't be trashed via the API — only permanently deleted.
   await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`,{method:'DELETE'});
 }
 
@@ -233,7 +237,6 @@ async function connectDriveSession(){
     await ensureLibraryFile();
     const remote=await driveDownloadJSON(driveLibraryFileId);
     let books=(remote && Array.isArray(remote.books)) ? remote.books : [];
-    // First-ever connect with an empty Drive library: bring over the local one as a starting point.
     if(books.length===0){
       let local=[]; try{ local=JSON.parse(localStorage.getItem('rdLib'))||[]; }catch{}
       if(local.length) books=local;
@@ -263,11 +266,15 @@ async function pushDriveLibrary(){
   if(!driveConnected || !driveLib) return;
   try{
     driveSyncing=true; updateDriveUI();
-    await ensureLibraryFile();
-    await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:driveLib}, driveLibraryFileId);
+    await ensureLibraryFile(false);
+    await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:driveLib}, driveLibraryFileId, false);
     driveLastSynced=Date.now();
   }catch(err){
-    console.error('Drive sync failed', err);
+    // Quietly skip — e.g. the access token expired. We don't prompt here
+    // since this runs automatically in the background; the toolbar Drive
+    // button will show "Reconnect Drive" and the next save will retry
+    // once the user reconnects.
+    console.warn('Background Drive sync skipped:', err.message);
   }finally{
     driveSyncing=false; updateDriveUI();
   }
