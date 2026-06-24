@@ -54,8 +54,6 @@ function initGoogleAuth(){
     callback: handleTokenResponse,
   });
   if(localStorage.getItem('rdDriveConnected')==='1'){
-    // Show the last-synced library immediately so the app feels instant,
-    // then try to silently resume the Drive session in the background.
     let cached=[]; try{ cached=JSON.parse(localStorage.getItem('rdDriveLibCache'))||[]; }catch{}
     driveLib=cached;
     driveConnected=true;
@@ -89,9 +87,6 @@ function handleTokenResponse(resp){
   if(resp.error){
     console.warn('Google Drive auth error:',resp.error);
     if(driveLib){
-      // We already have a previous/cached session worth preserving — keep
-      // showing it and let local edits queue, rather than dropping back to
-      // an empty "disconnected" view. Surface a one-click reconnect instead.
       driveNeedsReconnect=true;
     } else {
       driveConnected=false;
@@ -270,10 +265,6 @@ async function pushDriveLibrary(){
     await driveUploadJSON(DRIVE_LIB_FILENAME, {version:1, books:driveLib}, driveLibraryFileId, false);
     driveLastSynced=Date.now();
   }catch(err){
-    // Quietly skip — e.g. the access token expired. We don't prompt here
-    // since this runs automatically in the background; the toolbar Drive
-    // button will show "Reconnect Drive" and the next save will retry
-    // once the user reconnects.
     console.warn('Background Drive sync skipped:', err.message);
   }finally{
     driveSyncing=false; updateDriveUI();
@@ -349,9 +340,17 @@ const SPINE_COLORS=[
   ['#2C3E50','#1A252F'],['#6B2737','#451820'],['#1A5276','#0E3550'],
 ];
 
-function spineColor(name){
+function spineColorIndex(book){
+  if(book && typeof book==='object' && typeof book.colorIndex==='number'){
+    return ((book.colorIndex%SPINE_COLORS.length)+SPINE_COLORS.length)%SPINE_COLORS.length;
+  }
+  const name=typeof book==='string'?book:book.name;
   let h=0;for(const c of name)h=(Math.imul(31,h)+c.charCodeAt(0))|0;
-  return SPINE_COLORS[Math.abs(h)%SPINE_COLORS.length];
+  return Math.abs(h)%SPINE_COLORS.length;
+}
+
+function spineColor(book){
+  return SPINE_COLORS[spineColorIndex(book)];
 }
 
 function formatDate(ts){
@@ -360,7 +359,7 @@ function formatDate(ts){
 }
 
 function pct(book){
-  if(!book.total||book.total<=1)return(book.page>1?100:0);
+  if(!book.total||book.total<=1)return 0;
   return Math.round(((book.page-1)/(book.total-1))*100);
 }
 
@@ -395,7 +394,7 @@ function renderLibrary(){
 function renderGrid(lib,container){
   lib.forEach((book,i)=>{
     const p=pct(book);
-    const[c1,c2]=spineColor(book.name);
+    const[c1,c2]=spineColor(book);
     const title=book.title||book.name.replace(/\.pdf$/i,'');
     const author=book.author?` by ${book.author}`:'';
     const div=document.createElement('div');
@@ -410,7 +409,7 @@ function renderGrid(lib,container){
       <div class="grid-info">
         <div class="grid-title">${esc(title)}</div>
         <div class="grid-author">${esc(author)}</div>
-        <div class="grid-meta">${formatDate(book.lastRead)}</div>
+        <div class="grid-meta">${formatDate(book.lastRead)}${book.manual?' · <span class="manual-tag">Tracking only</span>':''}</div>
         <div class="grid-prog"><div class="grid-prog-bar" style="width:${p}%"></div></div>
       </div>`;
     const cover=div.querySelector('.grid-cover');
@@ -429,7 +428,7 @@ function renderGrid(lib,container){
 function renderList(lib,container){
   lib.forEach((book,i)=>{
     const p=pct(book);
-    const[c1,c2]=spineColor(book.name);
+    const[c1,c2]=spineColor(book);
     const title=book.title||book.name.replace(/\.pdf$/i,'');
     const author=book.author?` by ${book.author}`:'';
     const div=document.createElement('div');
@@ -443,10 +442,10 @@ function renderList(lib,container){
       <div class="list-info">
         <div class="list-title">${esc(title)}</div>
         <div class="list-author">${esc(author)}</div>
-        <div class="list-meta">Page ${book.page} of ${book.total||'?'} · ${formatDate(book.lastRead)}</div>
+        <div class="list-meta">Page ${book.page} of ${book.total||'?'} · ${formatDate(book.lastRead)}${book.manual?' · <span class="manual-tag">Tracking only</span>':''}</div>
         <div class="list-prog"><div class="list-prog-bar" style="width:${p}%"></div></div>
       </div>
-      <div class="list-pct">${p}%</div>
+      <div class="list-pct">${book.total?p+'%':'—'}</div>
       <button class="list-settings-btn" title="Menu">⋮</button>`;
     const thumb=div.querySelector('.list-thumb');
     if(book.thumb){
@@ -476,7 +475,7 @@ function renderShelf(lib,container){
     const books=document.createElement('div');books.className='shelf-books';
 
     chunk.forEach(book=>{
-      const[c1,c2]=spineColor(book.name);
+      const[c1,c2]=spineColor(book);
       const title=book.title||book.name.replace(/\.pdf$/i,'');
       const author=book.author?` by ${book.author}`:'';
       const p=pct(book);
@@ -484,7 +483,7 @@ function renderShelf(lib,container){
       const sp=document.createElement('div');sp.className='spine-book';
       sp.innerHTML=`
         <button class="spine-settings-btn" title="Menu">⋮</button>
-        <div class="spine-tooltip">${esc(title)} · ${p}%</div>
+        <div class="spine-tooltip">${esc(title)}${book.manual?' · Tracking only':' · '+p+'%'}</div>
         <div class="spine-body" style="height:${h}px;background:linear-gradient(to right,${c2} 0%,${c1} 40%,${c1} 100%)">
           <div class="spine-title">${esc(title)}</div>
         </div>
@@ -505,7 +504,45 @@ function renderShelf(lib,container){
 function hashStr(s){let h=0;for(const c of s)h=(Math.imul(31,h)+c.charCodeAt(0))|0;return h;}
 
 // ADD BOOK
-function openAddModal(){document.getElementById('modal-overlay').classList.add('open');}
+function switchAddTab(name){
+  document.querySelectorAll('#add-tabs .tm-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  document.getElementById('add-pdf-panel').classList.toggle('active',name==='pdf');
+  document.getElementById('add-manual-panel').classList.toggle('active',name==='manual');
+  document.getElementById('manual-add-confirm').style.display=name==='manual'?'':'none';
+}
+document.querySelectorAll('#add-tabs .tm-tab').forEach(t=>t.addEventListener('click',()=>switchAddTab(t.dataset.tab)));
+
+function resetManualForm(){
+  document.getElementById('manual-title').value='';
+  document.getElementById('manual-author').value='';
+  document.getElementById('manual-page').value='1';
+  document.getElementById('manual-total').value='';
+}
+
+function openAddModal(){
+  switchAddTab('pdf');
+  resetManualForm();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function addManualBook(){
+  const title=document.getElementById('manual-title').value.trim();
+  if(!title){ alert('Please enter a title.'); return; }
+  const author=document.getElementById('manual-author').value.trim();
+  const pageRaw=parseInt(document.getElementById('manual-page').value);
+  const totalRaw=document.getElementById('manual-total').value.trim();
+  const total=totalRaw?Math.max(1,parseInt(totalRaw)):null;
+  let page=isNaN(pageRaw)?1:Math.max(1,pageRaw);
+  if(total) page=Math.min(page,total);
+  const lib=getLib();
+  const id='manual-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+  const book={name:id,title,author:author||'Unknown',page,total,thumb:null,manual:true,lastRead:null,added:Date.now()};
+  lib.unshift(book);
+  saveLib(lib);
+  document.getElementById('modal-overlay').classList.remove('open');
+  showLibraryView();renderLibrary();
+}
+document.getElementById('manual-add-confirm').addEventListener('click',addManualBook);
 document.getElementById('btn-add').addEventListener('click',openAddModal);
 document.getElementById('btn-add-empty').addEventListener('click',openAddModal);
 document.getElementById('modal-cancel').addEventListener('click',()=>document.getElementById('modal-overlay').classList.remove('open'));
@@ -563,6 +600,7 @@ async function makeThumb(pdf){
 
 // OPEN BOOK
 function promptOpen(book){
+  if(book.manual){ updateBook(book); return; }
   if(book.driveFileId){ openFromDrive(book); return; }
   pendingBook=book;
   document.getElementById('open-title').textContent=book.title
@@ -570,12 +608,12 @@ function promptOpen(book){
   document.getElementById('open-sub').textContent=`Page ${book.page} of ${book.total||'?'} · ${pct(book)}% read · ${formatDate(book.lastRead)}`;
   const th=document.getElementById('open-thumb');th.innerHTML='';
   if(book.thumb){
-    const[c1]=spineColor(book.name);
+    const[c1]=spineColor(book);
     th.style.background=c1;
     const img=new Image();img.src=book.thumb;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
     th.appendChild(img);
   }else{
-    const[c1]=spineColor(book.name);
+    const[c1]=spineColor(book);
     th.style.background=c1;
     th.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:0.4">📄</div>';
   }
@@ -591,7 +629,6 @@ async function enterReader(pdf, book){
   showReaderView(book);
   await renderPage(curPage);
   updateReaderUI();
-  // Regenerate thumbnail silently if missing (e.g. after an import)
   if(!book.thumb){
     makeThumb(pdf).then(thumb=>{
       if(!thumb) return;
@@ -628,8 +665,6 @@ document.getElementById('fi-open').addEventListener('change',async e=>{
     const buf=await f.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:buf}).promise;
     await enterReader(pdf, book);
-    // If Drive is connected and this is a legacy local-only book, upload it in the
-    // background so it becomes available from other devices too.
     if(driveConnected && !book.driveFileId){
       driveUploadPDF(f)
         .then(fileId=>{
@@ -821,25 +856,95 @@ function showReaderView(book){
   });
 });
 
-function updateBook(book){
-    pendingBook=book;
-    document.getElementById('update-title').value=book.title
-    document.getElementById('update-author').value=book.author||'Unknown';
-    document.getElementById('update-sub').textContent=`Page ${book.page} of ${book.total||'?'} · ${pct(book)}% read · ${formatDate(book.lastRead)}`;
-    const th=document.getElementById('update-thumb');th.innerHTML='';
-    if(book.thumb){
-        const[c1]=spineColor(book.name);
-        th.style.background=c1;
-        const img=new Image();img.src=book.thumb;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
-        th.appendChild(img);
-    }else{
-        const[c1]=spineColor(book.name);
-        th.style.background=c1;
-        th.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:0.4">📄</div>';
-    }
-    document.getElementById('update-overlay').classList.add('open');
+let selectedColorIndex=null;
+let pendingCustomThumb=undefined;
+
+function refreshUpdateThumbPreview(){
+  const th=document.getElementById('update-thumb');th.innerHTML='';
+  const c1=SPINE_COLORS[selectedColorIndex][0];
+  th.style.background=c1;
+  const src = pendingCustomThumb!==undefined ? pendingCustomThumb : (pendingBook&&pendingBook.thumb);
+  if(src){
+    const img=new Image();img.src=src;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+    th.appendChild(img);
+  }else{
+    th.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:0.4">📄</div>';
+  }
 }
-document.getElementById('update-cancel').addEventListener('click',()=>{document.getElementById('update-overlay').classList.remove('open');pendingBook=null;});
+
+function buildColorSwatches(){
+  const wrap=document.getElementById('color-swatches');
+  wrap.innerHTML='';
+  SPINE_COLORS.forEach((pair,i)=>{
+    const[c1,c2]=pair;
+    const sw=document.createElement('button');
+    sw.type='button';
+    sw.className='color-swatch'+(i===selectedColorIndex?' selected':'');
+    sw.style.background=`linear-gradient(135deg,${c2},${c1})`;
+    sw.title='Spine color '+(i+1);
+    sw.addEventListener('click',()=>{
+      selectedColorIndex=i;
+      wrap.querySelectorAll('.color-swatch').forEach(el=>el.classList.remove('selected'));
+      sw.classList.add('selected');
+      refreshUpdateThumbPreview();
+    });
+    wrap.appendChild(sw);
+  });
+}
+
+function updateBook(book){
+  pendingBook=book;
+  pendingCustomThumb=undefined;
+  selectedColorIndex=spineColorIndex(book);
+  document.getElementById('update-title').value=book.title;
+  document.getElementById('update-author').value=book.author||'Unknown';
+  const subParts=[`Page ${book.page} of ${book.total||'?'}`];
+  if(book.total) subParts.push(`${pct(book)}% read`);
+  subParts.push(formatDate(book.lastRead));
+  document.getElementById('update-sub').textContent=subParts.join(' · ');
+  document.getElementById('update-page').value=book.page||1;
+  document.getElementById('update-page').max=book.total||'';
+  document.getElementById('update-total').value=book.total||'';
+  buildColorSwatches();
+  refreshUpdateThumbPreview();
+  document.getElementById('update-overlay').classList.add('open');
+}
+
+function readImageFileAsThumb(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const targetRatio=2/3, outW=240, outH=360;
+      let sx=0,sy=0,sw=img.width,sh=img.height;
+      const ratio=sw/sh;
+      if(ratio>targetRatio){ sw=sh*targetRatio; sx=(img.width-sw)/2; }
+      else{ sh=sw/targetRatio; sy=(img.height-sh)/2; }
+      const c=document.createElement('canvas');c.width=outW;c.height=outH;
+      c.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,outW,outH);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',0.82));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Could not read that image.'));};
+    img.src=url;
+  });
+}
+
+document.getElementById('update-thumb-upload-btn').addEventListener('click',()=>document.getElementById('fi-thumb').click());
+document.getElementById('fi-thumb').addEventListener('change',async e=>{
+  const f=e.target.files[0];
+  e.target.value='';
+  if(!f) return;
+  try{
+    pendingCustomThumb=await readImageFileAsThumb(f);
+    refreshUpdateThumbPreview();
+  }catch(err){ alert('Could not load that image: '+err.message); }
+});
+document.getElementById('update-thumb-reset-btn').addEventListener('click',()=>{
+  pendingCustomThumb=null;
+  refreshUpdateThumbPreview();
+});
+document.getElementById('update-cancel').addEventListener('click',()=>{document.getElementById('update-overlay').classList.remove('open');pendingBook=null;pendingCustomThumb=undefined;selectedColorIndex=null;});
 document.getElementById('update-save').addEventListener('click',()=>{
   if(pendingBook){
     try{
@@ -848,19 +953,31 @@ document.getElementById('update-save').addEventListener('click',()=>{
       if(b){
         b.title=document.getElementById('update-title').value.trim()||b.title;
         b.author=document.getElementById('update-author').value.trim()||b.author;
+        b.colorIndex=selectedColorIndex;
+        if(pendingCustomThumb!==undefined) b.thumb=pendingCustomThumb;
+
+        const totalRaw=document.getElementById('update-total').value.trim();
+        if(totalRaw===''){ b.total=null; }
+        else{ const t=parseInt(totalRaw); if(!isNaN(t)&&t>0) b.total=t; }
+
+        const pageRaw=parseInt(document.getElementById('update-page').value);
+        if(!isNaN(pageRaw)&&pageRaw>0){
+          b.page = b.total ? Math.min(pageRaw,b.total) : pageRaw;
+        }
       }
     saveLib(lib);
     showLibraryView();renderLibrary();
-  }catch(err){showLibraryView();alert('Could not read PDF: '+err.message);}
+  }catch(err){showLibraryView();alert('Could not save changes: '+err.message);}
   }
   document.getElementById('update-overlay').classList.remove('open');
-  pendingBook=null;
+  pendingBook=null;pendingCustomThumb=undefined;selectedColorIndex=null;
 });
 
 // ── CONTEXT MENU ──────────────────────────────────────────────────────
 const ctxMenu=document.getElementById('ctx-menu');
 function showCtx(e,book){
   ctxBook=book;
+  document.getElementById('ctx-read').textContent = book.manual ? 'Track progress' : 'Read';
   ctxMenu.style.left=Math.min(e.clientX,window.innerWidth-180)+'px';
   ctxMenu.style.top=Math.min(e.clientY,window.innerHeight-90)+'px';
   ctxMenu.classList.add('open');
@@ -872,7 +989,7 @@ document.getElementById('ctx-remove').addEventListener('click',async ()=>{
   if(!ctxBook)return;
   const book=ctxBook;ctxBook=null;
   const driveNote = (driveConnected && book.driveFileId) ? ' This will also permanently delete it from Google Drive.' : '';
-  if(confirm(`Remove "${book.name.replace(/\.pdf$/i,'')}" from your library?${driveNote}`)){
+  if(confirm(`Remove "${book.title||book.name.replace(/\.pdf$/i,'')}" from your library?${driveNote}`)){
     saveLib(getLib().filter(b=>b.name!==book.name));renderLibrary();
     if(driveConnected && book.driveFileId){
       driveDeleteFile(book.driveFileId).catch(err=>console.warn('Could not delete Drive file', err));
@@ -894,12 +1011,10 @@ window.addEventListener('resize',()=>{
 const BACKUP_VERSION = 1;
  
 function openTransferModal(){
-  // Populate export stats
   const lib=getLib();
   const read=lib.filter(b=>b.lastRead).length;
   document.getElementById('export-stats').innerHTML=
     `<div>Books: <span>${lib.length}</span></div><div>Ever opened: <span>${read}</span></div>`;
-  // Reset import status
   const st=document.getElementById('import-status');
   st.style.display='none'; st.className=''; st.textContent='';
   document.getElementById('transfer-overlay').classList.add('open');
@@ -917,10 +1032,10 @@ document.getElementById('transfer-overlay').addEventListener('click',e=>{
 
 // Tab switching
 function switchTransferTab(name){
-  document.querySelectorAll('.tm-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
-  document.querySelectorAll('.tm-panel').forEach(p=>p.classList.toggle('active', p.id==='tm-'+name));
+  document.querySelectorAll('#transfer-modal .tm-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('#transfer-modal .tm-panel').forEach(p=>p.classList.toggle('active', p.id==='tm-'+name));
 }
-document.querySelectorAll('.tm-tab').forEach(tab=>{
+document.querySelectorAll('#transfer-modal .tm-tab').forEach(tab=>{
   tab.addEventListener('click',()=>switchTransferTab(tab.dataset.tab));
 });
  
@@ -928,7 +1043,6 @@ document.querySelectorAll('.tm-tab').forEach(tab=>{
 function exportLibrary(){
   const lib=getLib();
   if(!lib.length){ alert('Your library is empty — nothing to export.'); return; }
-  // Strip thumbnails to keep file small; they regenerate on next open
   const clean=lib.map(({thumb,...rest})=>rest);
   const payload={
     version: BACKUP_VERSION,
@@ -971,11 +1085,9 @@ function doImport(file){
         if(!inBook.name) return;
         const existing=lib.find(b=>b.name===inBook.name);
         if(!existing){
-          // New book — add it (thumb will regenerate on open)
           lib.push({...inBook, thumb:null});
           added++;
         } else {
-          // Existing — keep whichever page is further ahead
           if((inBook.page||1) > (existing.page||1)){
             existing.page=inBook.page;
             existing.lastRead=inBook.lastRead;
@@ -1034,8 +1146,6 @@ document.getElementById('btn-drive-disconnect').addEventListener('click',()=>{
 });
 document.getElementById('btn-drive-sync').addEventListener('click',()=>{ connectDriveSession(); });
 
-// Google Identity Services loads asynchronously — initialize whenever it's ready,
-// regardless of whether it finished loading before or after this script ran.
 if(window.google && window.google.accounts && window.google.accounts.oauth2){
   initGoogleAuth();
 } else {

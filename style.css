@@ -1454,6 +1454,128 @@ body {
   }
 }
 
+/* MANUAL ENTRY FORM (Add modal) */
+.manual-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.manual-field label {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+.manual-field input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  outline: none;
+  box-shadow: none !important;
+}
+
+.manual-field input:focus {
+  border-color: var(--accent);
+}
+
+.manual-row {
+  display: flex;
+  gap: 14px;
+}
+
+.manual-row .manual-field {
+  flex: 1;
+  min-width: 0;
+}
+
+#add-manual-panel > p,
+#add-pdf-panel > p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+/* UPDATE MODAL — sections */
+.update-section {
+  margin-bottom: 18px;
+  clear: both;
+}
+
+.update-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.update-thumb-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.update-thumb-controls .mbtn {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+/* COLOR SWATCHES */
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.color-swatch.selected::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* manual-tracked book indicator */
+.manual-tag {
+  color: var(--accent2);
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   body {

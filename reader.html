@@ -91,13 +91,44 @@
 <div id="modal-overlay">
   <div id="modal">
     <h2>Add to library</h2>
-    <p>Select a PDF from your device. A cover thumbnail and your reading progress are saved — the file itself stays on your device.</p>
-    <div id="drop-zone">
-      <div class="dz-icon">📄</div>
-      <div class="dz-text">Drop a PDF here, or click to browse</div>
+    <div class="tm-tabs" id="add-tabs">
+      <button class="tm-tab active" data-tab="pdf">From PDF</button>
+      <button class="tm-tab" data-tab="manual">Track manually</button>
     </div>
+
+    <div class="tm-panel active" id="add-pdf-panel">
+      <p>Select a PDF from your device. A cover thumbnail and your reading progress are saved — the file itself stays on your device.</p>
+      <div id="drop-zone">
+        <div class="dz-icon">📄</div>
+        <div class="dz-text">Drop a PDF here, or click to browse</div>
+      </div>
+    </div>
+
+    <div class="tm-panel" id="add-manual-panel">
+      <p>No PDF? Add a book you're reading elsewhere just to track your progress.</p>
+      <div class="manual-field">
+        <label for="manual-title">Title</label>
+        <input type="text" id="manual-title" placeholder="Book title">
+      </div>
+      <div class="manual-field">
+        <label for="manual-author">Author</label>
+        <input type="text" id="manual-author" placeholder="Author (optional)">
+      </div>
+      <div class="manual-row">
+        <div class="manual-field">
+          <label for="manual-page">Current page</label>
+          <input type="number" id="manual-page" min="1" value="1">
+        </div>
+        <div class="manual-field">
+          <label for="manual-total">Total pages</label>
+          <input type="number" id="manual-total" min="1" placeholder="optional">
+        </div>
+      </div>
+    </div>
+
     <div class="modal-btns">
       <button class="mbtn cancel" id="modal-cancel">Cancel</button>
+      <button class="mbtn confirm" id="manual-add-confirm" style="display:none">Add book</button>
     </div>
   </div>
 </div>
@@ -128,6 +159,34 @@
       <input id="update-author" type="text"></input>
       <div class="sub" id="update-sub"></div>
     </div>
+
+    <div class="update-section">
+      <label class="update-label">Cover</label>
+      <div class="update-thumb-controls">
+        <button class="mbtn cancel" id="update-thumb-upload-btn">Upload image…</button>
+        <button class="mbtn cancel" id="update-thumb-reset-btn">Use generated cover</button>
+      </div>
+    </div>
+
+    <div class="update-section">
+      <label class="update-label">Spine color</label>
+      <div class="color-swatches" id="color-swatches"></div>
+    </div>
+
+    <div class="update-section">
+      <label class="update-label">Reading progress</label>
+      <div class="manual-row">
+        <div class="manual-field">
+          <label for="update-page">Current page</label>
+          <input type="number" id="update-page" min="1">
+        </div>
+        <div class="manual-field">
+          <label for="update-total">Total pages</label>
+          <input type="number" id="update-total" min="1" placeholder="unknown">
+        </div>
+      </div>
+    </div>
+
     <p class="note">Update the book's information.</p>
     <div class="modal-btns">
       <button class="mbtn cancel" id="update-cancel">Cancel</button>
@@ -198,6 +257,7 @@
 <input type="file" id="fi-add" accept=".pdf" style="display:none">
 <input type="file" id="fi-open" accept=".pdf" style="display:none">
 <input type="file" id="fi-import" accept=".json" style="display:none">
+<input type="file" id="fi-thumb" accept="image/*" style="display:none">
 
 <script src="script.js"></script>
 
