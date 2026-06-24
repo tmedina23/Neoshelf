@@ -1,6 +1,6 @@
 .vscode
 /node_modules
-index.html
+test.html
 package-lock.json
 package.json
 todo.md
