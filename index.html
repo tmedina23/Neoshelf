@@ -190,6 +190,7 @@
         <div class="manual-field">
           <label for="update-total">Total pages</label>
           <input type="number" id="update-total" min="1" placeholder="unknown">
+          <div class="field-note" id="update-total-note"></div>
         </div>
       </div>
     </div>
@@ -214,6 +215,14 @@
       <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
     </div>
     <div class="cal-grid" id="cal-days"></div>
+    <div class="cal-day-editor">
+      <label class="update-label" id="cal-day-editor-label">Tap a day to log pages read</label>
+      <div class="cal-day-editor-row">
+        <input type="number" id="cal-day-editor-input" min="0" placeholder="Pages" disabled>
+        <button class="mbtn confirm" id="cal-day-editor-save" type="button" disabled>Save</button>
+        <button class="mbtn cancel" id="cal-day-editor-clear" type="button" disabled>Clear</button>
+      </div>
+    </div>
     <div class="cal-summary" id="cal-summary"></div>
     <div class="modal-btns">
       <button class="mbtn cancel" id="calendar-close">Close</button>

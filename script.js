@@ -323,13 +323,13 @@ function saveLib(lib) {
     }
 }
 
-function saveProgress(name,page) {
+function saveProgress(name,page,pagesTurned) {
   const lib=getLib();
   const b=lib.find(b=>b.name===name);
   if(b) {
     b.page=page; 
     b.lastRead=Date.now();
-    markReadToday(b);
+    if(pagesTurned) logPagesRead(b,pagesTurned);
     saveLib(lib);
   }
 }
@@ -364,10 +364,20 @@ function todayStr(){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
-function markReadToday(book){
-  if(!Array.isArray(book.readDates)) book.readDates=[];
-  const t=todayStr();
-  if(!book.readDates.includes(t)) book.readDates.push(t);
+// Returns the book's per-day "pages read" log, transparently upgrading
+// books that only have the older boolean readDates list.
+function getReadLog(book){
+  if(book.readLog && typeof book.readLog==='object') return book.readLog;
+  const log={};
+  if(Array.isArray(book.readDates)) book.readDates.forEach(d=>{log[d]=1;});
+  return log;
+}
+
+function logPagesRead(book,count,dateKey){
+  if(!count||count<=0) return;
+  dateKey=dateKey||todayStr();
+  if(!book.readLog||typeof book.readLog!=='object') book.readLog=getReadLog(book);
+  book.readLog[dateKey]=(book.readLog[dateKey]||0)+count;
 }
 
 function pct(book){
@@ -715,9 +725,10 @@ async function renderPage(n){
 
 function goTo(n){
   if(!pdfDoc)return;
+  const prevPage=curPage;
   n=Math.max(1,Math.min(totalPages,n));
   curPage=n;renderPage(n);updateReaderUI();
-  saveProgress(curBookName,n);
+  saveProgress(curBookName,n,Math.abs(n-prevPage));
   document.getElementById('reader-view').scrollTop=0;
 }
 
@@ -872,7 +883,7 @@ function showReaderView(book){
 });
 
 let selectedColorIndex=null;
-let pendingCustomThumb=undefined; // undefined = no change; null = reset to generated; string = new dataURL
+let pendingCustomThumb=undefined;
 
 function refreshUpdateThumbPreview(){
   const th=document.getElementById('update-thumb');th.innerHTML='';
@@ -920,10 +931,19 @@ function updateBook(book){
   document.getElementById('update-page').value=book.page||1;
   document.getElementById('update-page').max=book.total||'';
   document.getElementById('update-total').value=book.total||'';
+  setTotalFieldLocked(!book.manual);
   document.getElementById('update-file-section').style.display=book.manual?'block':'none';
   buildColorSwatches();
   refreshUpdateThumbPreview();
   document.getElementById('update-overlay').classList.add('open');
+}
+
+function setTotalFieldLocked(locked){
+  const input=document.getElementById('update-total');
+  const note=document.getElementById('update-total-note');
+  input.readOnly=locked;
+  input.classList.toggle('readonly-field',locked);
+  note.textContent=locked?'Taken from the file — not editable.':'';
 }
 
 function readImageFileAsThumb(file){
@@ -957,9 +977,6 @@ document.getElementById('fi-thumb').addEventListener('change',async e=>{
   }catch(err){ alert('Could not load that image: '+err.message); }
 });
 
-// Attach a PDF to a tracking-only (manual) book — promotes it to a regular
-// file-backed book, taking the page count from the file while keeping the
-// title, author, spine color, and cover the user already set.
 document.getElementById('update-attach-pdf-btn').addEventListener('click',()=>document.getElementById('fi-attach-pdf').click());
 document.getElementById('fi-attach-pdf').addEventListener('change',async e=>{
   const f=e.target.files[0];
@@ -996,12 +1013,14 @@ document.getElementById('fi-attach-pdf').addEventListener('change',async e=>{
     document.getElementById('update-page').value=b.page;
     document.getElementById('update-page').max=b.total;
     document.getElementById('update-total').value=b.total;
+    setTotalFieldLocked(true);
     document.getElementById('update-file-section').style.display='none';
     const subParts=[`Page ${b.page} of ${b.total||'?'}`];
     if(b.total) subParts.push(`${pct(b)}% read`);
     subParts.push(formatDate(b.lastRead));
     document.getElementById('update-sub').textContent=subParts.join(' · ');
     refreshUpdateThumbPreview();
+    renderLibrary();
   }catch(err){
     alert('Could not attach that PDF: '+err.message);
   }finally{
@@ -1025,9 +1044,11 @@ document.getElementById('update-save').addEventListener('click',()=>{
         b.colorIndex=selectedColorIndex;
         if(pendingCustomThumb!==undefined) b.thumb=pendingCustomThumb;
 
-        const totalRaw=document.getElementById('update-total').value.trim();
-        if(totalRaw===''){ b.total=null; }
-        else{ const t=parseInt(totalRaw); if(!isNaN(t)&&t>0) b.total=t; }
+        if(b.manual){
+          const totalRaw=document.getElementById('update-total').value.trim();
+          if(totalRaw===''){ b.total=null; }
+          else{ const t=parseInt(totalRaw); if(!isNaN(t)&&t>0) b.total=t; }
+        }
 
         const prevPage=b.page;
         const pageRaw=parseInt(document.getElementById('update-page').value);
@@ -1035,7 +1056,7 @@ document.getElementById('update-save').addEventListener('click',()=>{
           b.page = b.total ? Math.min(pageRaw,b.total) : pageRaw;
           if(b.page!==prevPage){
             b.lastRead=Date.now();
-            markReadToday(b);
+            logPagesRead(b,Math.abs(b.page-prevPage));
           }
         }
       }
@@ -1048,12 +1069,13 @@ document.getElementById('update-save').addEventListener('click',()=>{
 });
 
 // ── READING CALENDAR ──────────────────────────────────────────────────
-let calendarBookName=null, calendarMonth=null;
+let calendarBookName=null, calendarMonth=null, calendarSelectedDate=null;
 
 function openCalendar(book){
   if(!book) return;
   calendarBookName=book.name;
   calendarMonth=new Date();calendarMonth.setDate(1);
+  calendarSelectedDate=null;
   document.getElementById('cal-title').textContent=book.title||book.name;
   document.getElementById('cal-subtitle').textContent=book.author?`by ${book.author}`:'';
   renderCalendar();
@@ -1064,35 +1086,92 @@ function renderCalendar(){
   if(!calendarBookName) return;
   const lib=getLib();
   const book=lib.find(b=>b.name===calendarBookName);
-  const readSet=new Set((book&&book.readDates)||[]);
+  const log=book?getReadLog(book):{};
   const y=calendarMonth.getFullYear(), m=calendarMonth.getMonth();
   document.getElementById('cal-month-label').textContent=calendarMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
   const firstDow=new Date(y,m,1).getDay();
   const daysInMonth=new Date(y,m+1,0).getDate();
   const wrap=document.getElementById('cal-days');
   wrap.innerHTML='';
-  for(let i=0;i<firstDow;i++){const e=document.createElement('div');e.className='cal-day empty';wrap.appendChild(e);}
   const todayKey=todayStr();
-  let countThisMonth=0;
-  for(let d=1;d<=daysInMonth;d++){
+  const TOTAL_CELLS=42;
+  let cell=0;
+  for(;cell<firstDow;cell++){
+    const e=document.createElement('div');e.className='cal-day empty';wrap.appendChild(e);
+  }
+  let monthPages=0, monthDays=0;
+  for(let d=1;d<=daysInMonth;d++,cell++){
     const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const marked=readSet.has(key);
-    if(marked) countThisMonth++;
+    const count=log[key]||0;
+    if(count>0){monthPages+=count;monthDays++;}
     const el=document.createElement('div');
-    el.className='cal-day'+(marked?' marked':'')+(key===todayKey?' today':'');
+    let cls='cal-day';
+    if(count>0) cls+=' marked';
+    if(key===todayKey) cls+=' today';
+    if(key===calendarSelectedDate) cls+=' selected';
+    if(key>todayKey) cls+=' future';
+    el.className=cls;
     el.textContent=d;
+    if(count>0) el.title=count+' page'+(count!==1?'s':'')+' read';
+    if(key<=todayKey) el.addEventListener('click',()=>{calendarSelectedDate=key;renderCalendar();});
     wrap.appendChild(el);
   }
-  const total=readSet.size;
+  for(;cell<TOTAL_CELLS;cell++){
+    const e=document.createElement('div');e.className='cal-day empty';wrap.appendChild(e);
+  }
+  let totalPages=0,totalDays=0;
+  Object.values(log).forEach(c=>{if(c>0){totalPages+=c;totalDays++;}});
   document.getElementById('cal-summary').textContent=
-    `${countThisMonth} day${countThisMonth!==1?'s':''} read this month · ${total} day${total!==1?'s':''} total`;
+    `${monthPages} page${monthPages!==1?'s':''} read this month (${monthDays} day${monthDays!==1?'s':''}) · ${totalPages} total`;
+  refreshDayEditor(log);
 }
 
-document.getElementById('cal-prev').addEventListener('click',()=>{calendarMonth.setMonth(calendarMonth.getMonth()-1);renderCalendar();});
-document.getElementById('cal-next').addEventListener('click',()=>{calendarMonth.setMonth(calendarMonth.getMonth()+1);renderCalendar();});
-document.getElementById('calendar-close').addEventListener('click',()=>{document.getElementById('calendar-overlay').classList.remove('open');calendarBookName=null;});
+function refreshDayEditor(log){
+  const label=document.getElementById('cal-day-editor-label');
+  const input=document.getElementById('cal-day-editor-input');
+  const saveBtn=document.getElementById('cal-day-editor-save');
+  const clearBtn=document.getElementById('cal-day-editor-clear');
+  if(!calendarSelectedDate){
+    label.textContent='Tap a day to log pages read';
+    input.value='';
+    input.disabled=true;saveBtn.disabled=true;clearBtn.disabled=true;
+    return;
+  }
+  const d=new Date(calendarSelectedDate+'T00:00:00');
+  label.textContent=d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  input.value=(log&&log[calendarSelectedDate])||'';
+  input.disabled=false;saveBtn.disabled=false;clearBtn.disabled=false;
+}
+
+document.getElementById('cal-day-editor-save').addEventListener('click',()=>{
+  if(!calendarSelectedDate||!calendarBookName) return;
+  const v=parseInt(document.getElementById('cal-day-editor-input').value);
+  const lib=getLib();
+  const book=lib.find(b=>b.name===calendarBookName);
+  if(!book) return;
+  if(!book.readLog||typeof book.readLog!=='object') book.readLog=getReadLog(book);
+  if(!isNaN(v)&&v>0) book.readLog[calendarSelectedDate]=v;
+  else delete book.readLog[calendarSelectedDate];
+  saveLib(lib);
+  renderCalendar();
+});
+document.getElementById('cal-day-editor-clear').addEventListener('click',()=>{
+  if(!calendarSelectedDate||!calendarBookName) return;
+  const lib=getLib();
+  const book=lib.find(b=>b.name===calendarBookName);
+  if(book){
+    if(!book.readLog||typeof book.readLog!=='object') book.readLog=getReadLog(book);
+    delete book.readLog[calendarSelectedDate];
+    saveLib(lib);
+  }
+  renderCalendar();
+});
+
+document.getElementById('cal-prev').addEventListener('click',()=>{calendarSelectedDate=null;calendarMonth.setMonth(calendarMonth.getMonth()-1);renderCalendar();});
+document.getElementById('cal-next').addEventListener('click',()=>{calendarSelectedDate=null;calendarMonth.setMonth(calendarMonth.getMonth()+1);renderCalendar();});
+document.getElementById('calendar-close').addEventListener('click',()=>{document.getElementById('calendar-overlay').classList.remove('open');calendarBookName=null;calendarSelectedDate=null;});
 document.getElementById('calendar-overlay').addEventListener('click',e=>{
-  if(e.target.id==='calendar-overlay'){document.getElementById('calendar-overlay').classList.remove('open');calendarBookName=null;}
+  if(e.target.id==='calendar-overlay'){document.getElementById('calendar-overlay').classList.remove('open');calendarBookName=null;calendarSelectedDate=null;}
 });
 
 // Reader view entry point — calendar for the book currently open

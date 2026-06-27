@@ -1486,6 +1486,23 @@ body {
   border-color: var(--accent);
 }
 
+.manual-field input.readonly-field {
+  color: var(--text-muted);
+  background: var(--surface2);
+  cursor: default;
+}
+
+.manual-field input.readonly-field:focus {
+  border-color: var(--border-strong);
+}
+
+.field-note {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  min-height: 14px;
+}
+
 .manual-row {
   display: flex;
   gap: 14px;
@@ -1649,8 +1666,9 @@ body {
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .cal-day {
@@ -1662,10 +1680,22 @@ body {
   color: var(--text-muted);
   border-radius: 50%;
   background: var(--surface2);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.cal-day:hover {
+  transform: scale(1.08);
 }
 
 .cal-day.empty {
   background: transparent;
+  cursor: default;
+}
+
+.cal-day.empty:hover {
+  transform: none;
 }
 
 .cal-day.marked {
@@ -1678,6 +1708,62 @@ body {
   box-shadow: 0 0 0 2px var(--accent2);
 }
 
+.cal-day.selected {
+  border-color: var(--accent2);
+}
+
+.cal-day.future {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cal-day.future:hover {
+  transform: none;
+}
+
+.cal-day-editor {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.cal-day-editor .update-label {
+  margin-bottom: 8px;
+}
+
+.cal-day-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#cal-day-editor-input {
+  width: 64px;
+  height: 32px;
+  text-align: center;
+  border: 1px solid var(--border-med);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  outline: none;
+}
+
+#cal-day-editor-input:disabled {
+  opacity: 0.5;
+}
+
+.cal-day-editor-row .mbtn {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+.cal-day-editor-row .mbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .cal-summary {
   font-size: 13px;
   color: var(--text-muted);
@@ -1685,6 +1771,9 @@ body {
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 4px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
 }
 
 /* MOBILE */
