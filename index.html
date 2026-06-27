@@ -43,6 +43,7 @@
       <div class="mm-item" id="btn-theme"><img id="img-theme" src="./images/icons/dark.png"><span>Dark mode</span></div>
       <div class="mm-item" id="btn-invert" title="Invert Page"><img id="img-invert" src="./images/icons/invert.png"><span>Invert page</span></div>
       <div class="mm-item" id="btn-rotate" title="Rotate Page"><img id="img-rotate" src="./images/icons/rotate-L.png"><span>Rotate page</span></div>
+      <div class="mm-item" id="btn-calendar" title="Reading calendar"><span>📅 Reading calendar</span></div>
       <div class="mm-sep"></div>
       <div class="mm-item" id="btn-drive" title="Connect Google Drive"><span>☁ Connect Drive</span></div>
       <div class="mm-item" id="btn-transfer" title="Export / Import library"><span>⇅ Export / Import</span></div>
@@ -160,6 +161,12 @@
       <div class="sub" id="update-sub"></div>
     </div>
 
+    <div class="update-section" id="update-file-section" style="display:none">
+      <label class="update-label">File</label>
+      <p class="update-file-note">This book is tracked without a file — attach a PDF to start reading it here. Its page count will be taken from the file.</p>
+      <button class="mbtn cancel" id="update-attach-pdf-btn">📎 Attach a PDF…</button>
+    </div>
+
     <div class="update-section">
       <label class="update-label">Cover</label>
       <div class="update-thumb-controls">
@@ -193,10 +200,32 @@
   </div>
 </div>
 
+<!-- CALENDAR MODAL -->
+<div id="calendar-overlay">
+  <div id="calendar-modal">
+    <h2 id="cal-title"></h2>
+    <div class="sub" id="cal-subtitle"></div>
+    <div class="cal-nav">
+      <button class="tbtn icon-only" id="cal-prev" type="button">‹</button>
+      <div id="cal-month-label"></div>
+      <button class="tbtn icon-only" id="cal-next" type="button">›</button>
+    </div>
+    <div class="cal-weekdays">
+      <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+    </div>
+    <div class="cal-grid" id="cal-days"></div>
+    <div class="cal-summary" id="cal-summary"></div>
+    <div class="modal-btns">
+      <button class="mbtn cancel" id="calendar-close">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONTEXT MENU -->
 <div id="ctx-menu">
   <div class="ctx-item" id="ctx-read">Read</div>
   <div class="ctx-item" id="ctx-update">Update book</div>
+  <div class="ctx-item" id="ctx-calendar">📅 View calendar</div>
   <div class="ctx-item danger" id="ctx-remove">Remove from library</div>
 </div>
 
@@ -256,6 +285,7 @@
 <input type="file" id="fi-open" accept=".pdf" style="display:none">
 <input type="file" id="fi-import" accept=".json" style="display:none">
 <input type="file" id="fi-thumb" accept="image/*" style="display:none">
+<input type="file" id="fi-attach-pdf" accept=".pdf" style="display:none">
 
 <script src="script.js"></script>
 

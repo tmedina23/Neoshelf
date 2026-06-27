@@ -329,6 +329,7 @@ function saveProgress(name,page) {
   if(b) {
     b.page=page; 
     b.lastRead=Date.now();
+    markReadToday(b);
     saveLib(lib);
   }
 }
@@ -356,6 +357,17 @@ function spineColor(book){
 function formatDate(ts){
   if(!ts)return'Never opened';
   return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function markReadToday(book){
+  if(!Array.isArray(book.readDates)) book.readDates=[];
+  const t=todayStr();
+  if(!book.readDates.includes(t)) book.readDates.push(t);
 }
 
 function pct(book){
@@ -802,6 +814,7 @@ function showLoadingView(msg){
   document.getElementById('toolbar-subtitle').style.display='none';
   document.getElementById('btn-invert').style.display='none';
   document.getElementById('btn-rotate').style.display='none';
+  document.getElementById('btn-calendar').style.display='none';
   document.getElementById('btn-drive').style.display='none';
   document.getElementById('btn-transfer').style.display='';
 }
@@ -823,6 +836,7 @@ function showLibraryView(){
   document.getElementById('toolbar-subtitle').style.display='none';
   document.getElementById('btn-invert').style.display='none';
   document.getElementById('btn-rotate').style.display='none';
+  document.getElementById('btn-calendar').style.display='none';
   document.getElementById('btn-drive').style.display='flex';
   document.getElementById('btn-transfer').style.display='';
 }
@@ -846,6 +860,7 @@ function showReaderView(book){
   document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
   document.getElementById('btn-invert').style.display='flex';
   document.getElementById('btn-rotate').style.display='flex';
+  document.getElementById('btn-calendar').style.display='flex';
   document.getElementById('btn-drive').style.display='none';
 }
 
@@ -857,7 +872,7 @@ function showReaderView(book){
 });
 
 let selectedColorIndex=null;
-let pendingCustomThumb=undefined;
+let pendingCustomThumb=undefined; // undefined = no change; null = reset to generated; string = new dataURL
 
 function refreshUpdateThumbPreview(){
   const th=document.getElementById('update-thumb');th.innerHTML='';
@@ -905,6 +920,7 @@ function updateBook(book){
   document.getElementById('update-page').value=book.page||1;
   document.getElementById('update-page').max=book.total||'';
   document.getElementById('update-total').value=book.total||'';
+  document.getElementById('update-file-section').style.display=book.manual?'block':'none';
   buildColorSwatches();
   refreshUpdateThumbPreview();
   document.getElementById('update-overlay').classList.add('open');
@@ -940,6 +956,59 @@ document.getElementById('fi-thumb').addEventListener('change',async e=>{
     refreshUpdateThumbPreview();
   }catch(err){ alert('Could not load that image: '+err.message); }
 });
+
+// Attach a PDF to a tracking-only (manual) book — promotes it to a regular
+// file-backed book, taking the page count from the file while keeping the
+// title, author, spine color, and cover the user already set.
+document.getElementById('update-attach-pdf-btn').addEventListener('click',()=>document.getElementById('fi-attach-pdf').click());
+document.getElementById('fi-attach-pdf').addEventListener('change',async e=>{
+  const f=e.target.files[0];
+  e.target.value='';
+  if(!f||!pendingBook) return;
+  const lib=getLib();
+  if(lib.some(b=>b.name===f.name && b.name!==pendingBook.name)){
+    alert(`"${f.name}" is already in your library as a separate entry. Remove or rename that one first.`);
+    return;
+  }
+  const btn=document.getElementById('update-attach-pdf-btn');
+  const prevLabel=btn.textContent;
+  btn.disabled=true;btn.textContent='Attaching…';
+  try{
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    const total=pdf.numPages;
+    const b=lib.find(x=>x.name===pendingBook.name);
+    if(!b) throw new Error('Book not found.');
+    b.name=f.name;
+    b.manual=false;
+    b.total=total;
+    b.page=Math.min(b.page||1,total);
+    if(!b.thumb){
+      const thumb=await makeThumb(pdf);
+      if(thumb) b.thumb=thumb;
+    }
+    if(driveConnected){
+      try{ b.driveFileId=await driveUploadPDF(f); }
+      catch(err){ console.warn('Could not upload attached PDF to Drive', err); }
+    }
+    saveLib(lib);
+    pendingBook=b;
+    document.getElementById('update-page').value=b.page;
+    document.getElementById('update-page').max=b.total;
+    document.getElementById('update-total').value=b.total;
+    document.getElementById('update-file-section').style.display='none';
+    const subParts=[`Page ${b.page} of ${b.total||'?'}`];
+    if(b.total) subParts.push(`${pct(b)}% read`);
+    subParts.push(formatDate(b.lastRead));
+    document.getElementById('update-sub').textContent=subParts.join(' · ');
+    refreshUpdateThumbPreview();
+  }catch(err){
+    alert('Could not attach that PDF: '+err.message);
+  }finally{
+    btn.disabled=false;btn.textContent=prevLabel;
+  }
+});
+
 document.getElementById('update-thumb-reset-btn').addEventListener('click',()=>{
   pendingCustomThumb=null;
   refreshUpdateThumbPreview();
@@ -960,9 +1029,14 @@ document.getElementById('update-save').addEventListener('click',()=>{
         if(totalRaw===''){ b.total=null; }
         else{ const t=parseInt(totalRaw); if(!isNaN(t)&&t>0) b.total=t; }
 
+        const prevPage=b.page;
         const pageRaw=parseInt(document.getElementById('update-page').value);
         if(!isNaN(pageRaw)&&pageRaw>0){
           b.page = b.total ? Math.min(pageRaw,b.total) : pageRaw;
+          if(b.page!==prevPage){
+            b.lastRead=Date.now();
+            markReadToday(b);
+          }
         }
       }
     saveLib(lib);
@@ -971,6 +1045,62 @@ document.getElementById('update-save').addEventListener('click',()=>{
   }
   document.getElementById('update-overlay').classList.remove('open');
   pendingBook=null;pendingCustomThumb=undefined;selectedColorIndex=null;
+});
+
+// ── READING CALENDAR ──────────────────────────────────────────────────
+let calendarBookName=null, calendarMonth=null;
+
+function openCalendar(book){
+  if(!book) return;
+  calendarBookName=book.name;
+  calendarMonth=new Date();calendarMonth.setDate(1);
+  document.getElementById('cal-title').textContent=book.title||book.name;
+  document.getElementById('cal-subtitle').textContent=book.author?`by ${book.author}`:'';
+  renderCalendar();
+  document.getElementById('calendar-overlay').classList.add('open');
+}
+
+function renderCalendar(){
+  if(!calendarBookName) return;
+  const lib=getLib();
+  const book=lib.find(b=>b.name===calendarBookName);
+  const readSet=new Set((book&&book.readDates)||[]);
+  const y=calendarMonth.getFullYear(), m=calendarMonth.getMonth();
+  document.getElementById('cal-month-label').textContent=calendarMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  const firstDow=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const wrap=document.getElementById('cal-days');
+  wrap.innerHTML='';
+  for(let i=0;i<firstDow;i++){const e=document.createElement('div');e.className='cal-day empty';wrap.appendChild(e);}
+  const todayKey=todayStr();
+  let countThisMonth=0;
+  for(let d=1;d<=daysInMonth;d++){
+    const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const marked=readSet.has(key);
+    if(marked) countThisMonth++;
+    const el=document.createElement('div');
+    el.className='cal-day'+(marked?' marked':'')+(key===todayKey?' today':'');
+    el.textContent=d;
+    wrap.appendChild(el);
+  }
+  const total=readSet.size;
+  document.getElementById('cal-summary').textContent=
+    `${countThisMonth} day${countThisMonth!==1?'s':''} read this month · ${total} day${total!==1?'s':''} total`;
+}
+
+document.getElementById('cal-prev').addEventListener('click',()=>{calendarMonth.setMonth(calendarMonth.getMonth()-1);renderCalendar();});
+document.getElementById('cal-next').addEventListener('click',()=>{calendarMonth.setMonth(calendarMonth.getMonth()+1);renderCalendar();});
+document.getElementById('calendar-close').addEventListener('click',()=>{document.getElementById('calendar-overlay').classList.remove('open');calendarBookName=null;});
+document.getElementById('calendar-overlay').addEventListener('click',e=>{
+  if(e.target.id==='calendar-overlay'){document.getElementById('calendar-overlay').classList.remove('open');calendarBookName=null;}
+});
+
+// Reader view entry point — calendar for the book currently open
+document.getElementById('btn-calendar').addEventListener('click',()=>{
+  closeMoreMenu();
+  const lib=getLib();
+  const b=lib.find(x=>x.name===curBookName);
+  if(b) openCalendar(b);
 });
 
 // ── CONTEXT MENU ──────────────────────────────────────────────────────
@@ -985,6 +1115,7 @@ function showCtx(e,book){
 document.addEventListener('click',()=>ctxMenu.classList.remove('open'));
 document.getElementById('ctx-read').addEventListener('click',()=>{if(ctxBook)promptOpen(ctxBook);ctxBook=null;});
 document.getElementById('ctx-update').addEventListener('click',()=>{if(ctxBook)updateBook(ctxBook);ctxBook=null;});
+document.getElementById('ctx-calendar').addEventListener('click',()=>{if(ctxBook)openCalendar(ctxBook);ctxBook=null;});
 document.getElementById('ctx-remove').addEventListener('click',async ()=>{
   if(!ctxBook)return;
   const book=ctxBook;ctxBook=null;
